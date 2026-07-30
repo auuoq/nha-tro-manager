@@ -1,0 +1,569 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  OWNER
+  TENANT
+}
+
+enum OwnerStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  TERMINATED
+}
+
+enum RoomStatus {
+  VACANT
+  RESERVED
+  RENTED
+  MAINTENANCE
+}
+
+enum ContractStatus {
+  DRAFT
+  ACTIVE
+  EXPIRING
+  TERMINATED
+  CANCELLED
+}
+
+enum ContractTenantRole {
+  PRIMARY
+  MEMBER
+}
+
+enum MeterType {
+  ELECTRICITY
+  WATER
+}
+
+enum MeterReadingStatus {
+  RECORDED
+  VERIFIED
+  INVALIDATED
+}
+
+enum ChargeType {
+  ELECTRICITY
+  WATER
+  WIFI
+  GARBAGE
+  PARKING
+  OTHER
+}
+
+enum ChargeMethod {
+  METERED // Tính theo đồng hồ (số mới - số cũ)
+  PER_PERSON // Tính theo số đầu người active tại ngày chốt
+  PER_ROOM // Tính cố định theo phòng
+  FREE // Miễn phí
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum InvoiceItemType {
+  ROOM
+  ELECTRICITY
+  WATER
+  WIFI
+  GARBAGE
+  PARKING
+  PREVIOUS_DEBT
+  DISCOUNT
+  OTHER
+}
+
+enum PaymentMethod {
+  VIETQR
+  BANK_TRANSFER
+  CASH
+  BANK_WEBHOOK
+  OTHER
+}
+
+enum PaymentSource {
+  ADMIN_MANUAL
+  BANK_WEBHOOK
+  SYSTEM
+}
+
+enum PaymentStatus {
+  PENDING
+  PENDING_REVIEW // Trường hợp dư tiền (Overpayment)
+  CONFIRMED
+  REJECTED
+  CANCELLED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum MaintenanceStatus {
+  PENDING
+  IN_PROGRESS
+  RESOLVED
+  REJECTED
+}
+
+enum MaintenancePriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+model User {
+  id                 String    @id @default(uuid())
+  phone              String    @unique
+  email              String?   @unique
+  passwordHash       String
+  fullName           String
+  role               UserRole  @default(TENANT)
+  isActive           Boolean   @default(true)
+  mustChangePassword Boolean   @default(true)
+  tokenVersion       Int       @default(1)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  deletedAt          DateTime?
+
+  // Relations
+  ownerProfile        OwnerProfile?
+  ownedBuildings      Building[]           @relation("BuildingOwner")
+  managedTenants      Tenant[]             @relation("TenantOwner")
+  tenantProfile       Tenant?              @relation("TenantUser")
+  auditLogs           AuditLog[]
+  createdMaintenances MaintenanceRequest[] @relation("MaintenanceCreator")
+  notifications       Notification[]
+  recordedReadings    MeterReading[]       @relation("MeterReadingRecorder")
+  recordedPayments    Payment[]            @relation("PaymentRecorder")
+  confirmedPayments   Payment[]            @relation("PaymentConfirmer")
+
+  @@index([phone])
+  @@index([role])
+}
+
+model OwnerProfile {
+  id           String      @id @default(uuid())
+  userId       String      @unique
+  businessName String?
+  taxCode      String?
+  address      String?
+  status       OwnerStatus @default(ACTIVE)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  deletedAt    DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId])
+  @@index([status])
+}
+
+model Building {
+  id              String    @id @default(uuid())
+  ownerId         String
+  name            String
+  address         String
+  description     String?
+  bankName        String?
+  bankAccountNo   String?
+  bankAccountName String?
+  bankBin         String?
+  wifiInfo        String?
+  rules           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  owner         User           @relation("BuildingOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  rooms         Room[]
+  chargeConfigs ChargeConfig[]
+
+  @@index([ownerId])
+}
+
+model Room {
+  id         String     @id @default(uuid())
+  buildingId String
+  roomNumber String
+  floor      Int
+  roomType   String
+  basePrice  Decimal    @db.Decimal(12, 0)
+  areaSqM    Decimal    @db.Decimal(6, 2)
+  status     RoomStatus @default(VACANT)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  building            Building             @relation(fields: [buildingId], references: [id], onDelete: Restrict)
+  assets              RoomAsset[]
+  contracts           Contract[]
+  meters              Meter[]
+  invoices            Invoice[]
+  chargeConfigs       ChargeConfig[]
+  maintenanceRequests MaintenanceRequest[]
+
+  @@unique([buildingId, roomNumber])
+  @@index([buildingId])
+  @@index([status])
+}
+
+model ChargeConfig {
+  id            String       @id @default(uuid())
+  buildingId    String?
+  roomId        String?
+  contractId    String?
+  chargeType    ChargeType
+  chargeMethod  ChargeMethod
+  unitPrice     Decimal      @db.Decimal(12, 0)
+  effectiveFrom DateTime     @default(now())
+  effectiveTo   DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  building Building? @relation(fields: [buildingId], references: [id], onDelete: Restrict)
+  room     Room?     @relation(fields: [roomId], references: [id], onDelete: Restrict)
+  contract Contract? @relation(fields: [contractId], references: [id], onDelete: Restrict)
+
+  @@index([buildingId])
+  @@index([roomId])
+  @@index([contractId])
+  @@index([chargeType, effectiveFrom])
+}
+
+model RoomAsset {
+  id        String    @id @default(uuid())
+  roomId    String
+  name      String
+  assetCode String?
+  condition String    @default("GOOD")
+  quantity  Int       @default(1)
+  note      String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([roomId])
+}
+
+model Tenant {
+  id                    String    @id @default(uuid())
+  ownerId               String
+  userId                String?   @unique
+  fullName              String
+  phone                 String?
+  dateOfBirth           DateTime?
+  gender                String?
+  idCardNumber          String?   @unique
+  idCardIssuedDate      DateTime?
+  idCardIssuedPlace     String?
+  idCardFrontPath       String?
+  idCardBackPath        String?
+  hometown              String?
+  permanentAddress      String?
+  vehicleNumber         String?
+  emergencyContactName  String?
+  emergencyContactPhone String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  deletedAt             DateTime?
+
+  owner           User             @relation("TenantOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  user            User?            @relation("TenantUser", fields: [userId], references: [id], onDelete: SetNull)
+  contractTenants ContractTenant[]
+
+  @@index([ownerId])
+  @@index([userId])
+  @@index([idCardNumber])
+  @@index([phone])
+}
+
+model Contract {
+  id                     String         @id @default(uuid())
+  roomId                 String
+  contractCode           String         @unique
+  startDate              DateTime
+  endDate                DateTime
+  actualMoveInDate       DateTime?
+  actualMoveOutDate      DateTime?
+  depositAmount          Decimal        @db.Decimal(12, 0)
+  monthlyPrice           Decimal        @db.Decimal(12, 0)
+  billingDay             Int            @default(5)
+  status                 ContractStatus @default(DRAFT)
+  cancellationReason     String?
+  terminationDate        DateTime?
+  terminationReason      String?
+  depositReturnedAmount  Decimal        @default(0) @db.Decimal(12, 0)
+  depositDeductionAmount Decimal        @default(0) @db.Decimal(12, 0)
+  documentPath           String?
+  notes                  String?
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
+  deletedAt              DateTime?
+
+  room            Room             @relation(fields: [roomId], references: [id], onDelete: Restrict)
+  contractTenants ContractTenant[]
+  invoices        Invoice[]
+  chargeConfigs   ChargeConfig[]
+
+  @@index([roomId])
+  @@index([status])
+  @@index([startDate, endDate])
+  @@index([contractCode])
+}
+
+model ContractTenant {
+  id         String             @id @default(uuid())
+  contractId String
+  tenantId   String
+  role       ContractTenantRole @default(MEMBER)
+  joinedAt   DateTime           @default(now())
+  leftAt     DateTime?
+
+  contract Contract @relation(fields: [contractId], references: [id], onDelete: Restrict)
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+
+  @@unique([contractId, tenantId])
+  @@index([contractId])
+  @@index([tenantId])
+}
+
+model Meter {
+  id             String    @id @default(uuid())
+  roomId         String
+  type           MeterType
+  serialNumber   String
+  initialReading Decimal   @db.Decimal(10, 2)
+  installedAt    DateTime  @default(now())
+  removedAt      DateTime?
+  isActive       Boolean   @default(true)
+  note           String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  room     Room           @relation(fields: [roomId], references: [id], onDelete: Restrict)
+  readings MeterReading[]
+
+  @@index([roomId, type, isActive])
+}
+
+model MeterReading {
+  id            String             @id @default(uuid())
+  meterId       String
+  period        String
+  previousValue Decimal            @db.Decimal(10, 2)
+  currentValue  Decimal            @db.Decimal(10, 2)
+  consumption   Decimal            @db.Decimal(10, 2)
+  imagePath     String?
+  note          String?
+  status        MeterReadingStatus @default(RECORDED)
+  recordedById  String
+  recordedAt    DateTime           @default(now())
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  meter        Meter         @relation(fields: [meterId], references: [id], onDelete: Restrict)
+  recordedBy   User          @relation("MeterReadingRecorder", fields: [recordedById], references: [id], onDelete: Restrict)
+  invoiceItems InvoiceItem[]
+
+  @@unique([meterId, period])
+  @@index([meterId])
+  @@index([period])
+  @@index([recordedById])
+}
+
+model Invoice {
+  id                 String        @id @default(uuid())
+  invoiceCode        String        @unique
+  roomId             String
+  contractId         String
+  billingPeriod      String
+  revision           Int           @default(1)
+  issuedAt           DateTime?
+  dueDate            DateTime
+  subtotalAmount     Decimal       @db.Decimal(12, 0)
+  discountAmount     Decimal       @default(0) @db.Decimal(12, 0)
+  totalAmount        Decimal       @db.Decimal(12, 0)
+  paidAmount         Decimal       @default(0) @db.Decimal(12, 0)
+  remainingAmount    Decimal       @db.Decimal(12, 0)
+  status             InvoiceStatus @default(DRAFT)
+  replacedInvoiceId  String?
+  cancellationReason String?
+  notes              String?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  deletedAt          DateTime?
+
+  room            Room          @relation(fields: [roomId], references: [id], onDelete: Restrict)
+  contract        Contract      @relation(fields: [contractId], references: [id], onDelete: Restrict)
+  replacedInvoice Invoice?      @relation("InvoiceRevisions", fields: [replacedInvoiceId], references: [id], onDelete: Restrict)
+  revisions       Invoice[]     @relation("InvoiceRevisions")
+  items           InvoiceItem[]
+  payments        Payment[]
+
+  @@unique([contractId, billingPeriod, revision])
+  @@index([roomId])
+  @@index([contractId])
+  @@index([status])
+  @@index([billingPeriod])
+}
+
+model InvoiceItem {
+  id                  String          @id @default(uuid())
+  invoiceId           String
+  type                InvoiceItemType
+  description         String
+  quantity            Decimal         @db.Decimal(10, 2)
+  unit                String
+  unitPrice           Decimal         @db.Decimal(12, 0)
+  amount              Decimal         @db.Decimal(12, 0)
+  meterReadingId      String?
+  previousReading     Decimal?        @db.Decimal(10, 2)
+  currentReading      Decimal?        @db.Decimal(10, 2)
+  calculationMetadata Json?
+  sortOrder           Int             @default(0)
+
+  invoice      Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  meterReading MeterReading? @relation(fields: [meterReadingId], references: [id], onDelete: SetNull)
+
+  @@index([invoiceId])
+  @@index([meterReadingId])
+}
+
+model Payment {
+  id                 String        @id @default(uuid())
+  paymentCode        String        @unique
+  invoiceId          String
+  amount             Decimal       @db.Decimal(12, 0)
+  refundAmount       Decimal       @default(0) @db.Decimal(12, 0)
+  overpaymentAmount  Decimal       @default(0) @db.Decimal(12, 0)
+  method             PaymentMethod @default(VIETQR)
+  source             PaymentSource @default(ADMIN_MANUAL)
+  status             PaymentStatus @default(PENDING)
+  provider           String?
+  transactionRef     String?       @unique
+  idempotencyKey     String?       @unique
+  rawPayload         Json?
+  notes              String?
+  receivedAt         DateTime?
+  confirmedAt        DateTime?
+  confirmedById      String?
+  cancelledAt        DateTime?
+  cancellationReason String?
+  refundReason       String?
+  recordedById       String?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  deletedAt          DateTime?
+
+  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  recordedBy  User?   @relation("PaymentRecorder", fields: [recordedById], references: [id], onDelete: SetNull)
+  confirmedBy User?   @relation("PaymentConfirmer", fields: [confirmedById], references: [id], onDelete: SetNull)
+
+  @@index([invoiceId])
+  @@index([recordedById])
+  @@index([confirmedById])
+  @@index([status])
+  @@index([source])
+}
+
+model WebhookEvent {
+  id               String   @id @default(uuid())
+  provider         String
+  eventId          String
+  payload          Json
+  status           String   // PROCESSED, UNMATCHED, FAILED
+  matchedInvoiceId String?
+  matchedPaymentId String?
+  errorMessage     String?
+  createdAt        DateTime @default(now())
+
+  @@unique([provider, eventId])
+  @@index([matchedInvoiceId])
+  @@index([status])
+}
+
+model MaintenanceRequest {
+  id          String              @id @default(uuid())
+  ticketCode  String              @unique
+  roomId      String
+  createdById String
+  title       String
+  description String              @db.Text
+  priority    MaintenancePriority @default(MEDIUM)
+  status      MaintenanceStatus   @default(PENDING)
+  resolvedAt  DateTime?
+  cost        Decimal?            @db.Decimal(12, 0)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  room        Room                    @relation(fields: [roomId], references: [id], onDelete: Restrict)
+  createdBy   User                    @relation("MaintenanceCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  attachments MaintenanceAttachment[]
+
+  @@index([roomId])
+  @@index([createdById])
+  @@index([status])
+}
+
+model MaintenanceAttachment {
+  id                   String   @id @default(uuid())
+  maintenanceRequestId String
+  filePath             String
+  fileType             String
+  createdAt            DateTime @default(now())
+
+  maintenanceRequest MaintenanceRequest @relation(fields: [maintenanceRequestId], references: [id], onDelete: Cascade)
+
+  @@index([maintenanceRequestId])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  title     String
+  content   String   @db.Text
+  isRead    Boolean  @default(false)
+  linkUrl   String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  action    String
+  entity    String
+  entityId  String?
+  details   String?  @db.Text
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([entity, entityId])
+  @@index([createdAt])
+}

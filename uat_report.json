@@ -1,0 +1,131 @@
+[
+  {
+    "name": "Seed SUPER_ADMIN & Login",
+    "status": "PASS",
+    "details": {
+      "expected": true,
+      "actual": true
+    }
+  },
+  {
+    "name": "Create, Login, Suspend, Reactivate OWNER",
+    "status": "PASS",
+    "details": {
+      "login": true,
+      "suspended": "SUSPENDED",
+      "reactivated": "ACTIVE"
+    }
+  },
+  {
+    "name": "Create Building & ChargeConfig",
+    "status": "PASS",
+    "details": {
+      "buildingId": "ccd67404-7bec-4a9c-ba3a-d7c1c37428d4"
+    }
+  },
+  {
+    "name": "Create Room & Assets",
+    "status": "PASS",
+    "details": {
+      "roomId": "e714af1a-54a1-4b93-ad17-2e259b501ccc",
+      "assetsCount": 4
+    }
+  },
+  {
+    "name": "Create Tenant",
+    "status": "PASS",
+    "details": {
+      "tenantId": "ff1cd07f-fa29-4c66-a992-29590151986f"
+    }
+  },
+  {
+    "name": "Create & Activate Contract",
+    "status": "PASS",
+    "details": {
+      "contractStatus": "ACTIVE",
+      "roomStatus": "RENTED"
+    }
+  },
+  {
+    "name": "Record Meters",
+    "status": "PASS",
+    "details": {
+      "elecCons": 120,
+      "waterCons": 6
+    }
+  },
+  {
+    "name": "Invoice DRAFT Math",
+    "status": "PASS",
+    "details": {
+      "total": 5410000,
+      "remaining": 5410000
+    }
+  },
+  {
+    "name": "Issue Invoice & VietQR",
+    "status": "PASS",
+    "details": {
+      "status": "ISSUED",
+      "qrContent": "INV-UAT-001",
+      "qrAmount": 5410000
+    }
+  },
+  {
+    "name": "Record Partial Payment",
+    "status": "PASS",
+    "details": {
+      "paid": 2000000,
+      "remaining": 3410000,
+      "status": "PARTIALLY_PAID"
+    }
+  },
+  {
+    "name": "Record Full Payment",
+    "status": "PASS",
+    "details": {
+      "paid": 5410000,
+      "remaining": 0,
+      "status": "PAID"
+    }
+  },
+  {
+    "name": "Refund Payment",
+    "status": "PASS",
+    "details": {
+      "paid": 5000000,
+      "remaining": 410000,
+      "status": "PARTIALLY_PAID"
+    }
+  },
+  {
+    "name": "Cancel Payment",
+    "status": "PASS",
+    "details": {
+      "paid": 3000000,
+      "remaining": 2410000,
+      "status": "PARTIALLY_PAID"
+    }
+  },
+  {
+    "name": "Webhook Idempotency",
+    "status": "PASS",
+    "details": {
+      "res1Message": "Webhook recorded as UNMATCHED. No matching active invoice found.",
+      "res2Message": "Webhook event already processed (Idempotent response)",
+      "paidAfter1": 3000000,
+      "paidAfter2": 3000000
+    }
+  },
+  {
+    "name": "Authorization OWNER Isolation",
+    "status": "PASS",
+    "details": {
+      "b": null,
+      "r": null,
+      "t": null,
+      "i": null,
+      "p": null
+    }
+  }
+]

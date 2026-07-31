@@ -1,14 +1,12 @@
-// TODO (Auth Audit Required): Refresh token interceptor flow below is a temporary client-side mock implementation.
-// Production token lifecycle, HttpOnly cookie handling, and session rotation will be fully audited in Phase F.
 import axios from "axios";
 
 // VITE_API_BASE_URL is set on the hosting platform (e.g. Vercel env var).
 // In local dev, it is empty — Vite dev server proxies /api → http://127.0.0.1:8000.
 // In staging/production, it must be the full backend URL e.g. https://nha-tro-api-staging.onrender.com
-const API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? "";
+const API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined) || (import.meta.env.PROD ? "https://nha-tro-manager-5clz.onrender.com/api/v1" : "/api/v1");
 
 export const apiClient = axios.create({
-  baseURL: `${API_BASE}/api/v1`,
+  baseURL: API_BASE.endsWith("/api/v1") ? API_BASE : `${API_BASE}/api/v1`,
   headers: {
     "Content-Type": "application/json",
   },
@@ -33,10 +31,14 @@ apiClient.interceptors.response.use(
       const refreshToken = localStorage.getItem("refreshToken");
       if (refreshToken && !originalRequest.url?.includes("/auth/refresh")) {
         try {
-          const res = await axios.post("/api/v1/auth/refresh", { refreshToken });
+          const res = await apiClient.post("/auth/refresh");
           if (res.data?.success && res.data?.data?.accessToken) {
-            localStorage.setItem("accessToken", res.data.data.accessToken);
-            originalRequest.headers.Authorization = `Bearer ${res.data.data.accessToken}`;
+            const newAccess = res.data.data.accessToken;
+            localStorage.setItem("accessToken", newAccess);
+            if (res.data.data.refreshToken) {
+              localStorage.setItem("refreshToken", res.data.data.refreshToken);
+            }
+            originalRequest.headers.Authorization = `Bearer ${newAccess}`;
             return apiClient(originalRequest);
           }
         } catch {

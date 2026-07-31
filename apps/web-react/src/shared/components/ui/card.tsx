@@ -1,15 +1,32 @@
 import * as React from "react";
 import { cn } from "@/shared/lib/utils";
 
-export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+export interface CardProps extends Omit<React.HTMLAttributes<HTMLDivElement>, "title"> {
+  title?: React.ReactNode;
+  subtitle?: React.ReactNode;
+  action?: React.ReactNode;
+}
+
+export function Card({ className, children, title, subtitle, action, ...props }: CardProps) {
   return (
     <div
       className={cn(
-        "bg-white rounded-2xl border border-[#E8E5DF] shadow-2xs overflow-hidden transition-all duration-200",
+        "bg-white rounded-2xl border border-[#E8E5DF] shadow-[0_2px_8px_rgba(0,0,0,0.03)] overflow-hidden transition-all duration-150",
         className
       )}
       {...props}
-    />
+    >
+      {(title || action) && (
+        <div className="px-6 py-4.5 border-b border-[#F2EFE9] flex items-center justify-between gap-4">
+          <div>
+            {title && <h3 className="text-base font-semibold text-[#252724] tracking-tight">{title}</h3>}
+            {subtitle && <p className="text-xs text-[#73766F] mt-0.5">{subtitle}</p>}
+          </div>
+          {action && <div>{action}</div>}
+        </div>
+      )}
+      {title || action ? <div className="p-6">{children}</div> : children}
+    </div>
   );
 }
 

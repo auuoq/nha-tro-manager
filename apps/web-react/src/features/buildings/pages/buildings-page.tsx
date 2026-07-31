@@ -73,7 +73,7 @@ export const BuildingsPage: React.FC = () => {
   };
 
   const handleArchive = (id: string) => {
-    if (confirm("Bạn có chắc chắn muốn lưu trữ/xóa tòa nhà này?")) {
+    if (confirm("Bạn có chắc chắn muốn lưu trữ tòa nhà này?")) {
       deleteMutation.mutate(id);
     }
   };
@@ -81,7 +81,7 @@ export const BuildingsPage: React.FC = () => {
   const buildings = data?.items || [];
 
   return (
-    <div className="space-y-6">
+    <div>
       <PageHeader
         title="Quản Lý Cơ Sở & Tòa Nhà Trọ"
         description="Danh sách các tòa nhà thuộc sở hữu của bạn và thiết lập đơn giá dịch vụ mặc định"
@@ -93,7 +93,7 @@ export const BuildingsPage: React.FC = () => {
       />
 
       {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {[1, 2, 3].map((i) => (
             <Skeleton key={i} className="h-64 rounded-2xl" />
           ))}
@@ -101,75 +101,107 @@ export const BuildingsPage: React.FC = () => {
       ) : buildings.length === 0 ? (
         <EmptyState
           title="Chưa có tòa nhà nào"
-          description="Hãy tạo tòa nhà trọ đầu tiên để bắt đầu quản lý phòng và hợp đồng."
+          description="Nhấn vào nút + Thêm Tòa Nhà ở trên để khởi tạo cơ sở đầu tiên."
           action={
             <Button variant="primary" onClick={() => setIsDialogOpen(true)}>
-              + Thêm Tòa Nhà Mới
+              + Thêm Tòa Nhà
             </Button>
           }
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {buildings.map((b) => (
-            <Card key={b.id} className="hover:border-[#C8B8A8] transition-all flex flex-col justify-between p-6">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-[#EBF0ED] text-[#3F594F] flex items-center justify-center font-medium shrink-0">
-                      <Building2 className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h3 className="text-base font-semibold text-[#252724] tracking-tight">{b.name}</h3>
-                      <p className="text-xs text-[#73766F] font-normal">{b.address}</p>
-                    </div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-[#A84646] hover:bg-[#FDF0F0] p-2"
-                    onClick={() => handleArchive(b.id)}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {buildings.map((building) => (
+            (() => {
+              const roomsCount = building.roomsCount ?? building.totalRooms ?? 0;
+              const activeContractsCount = building.activeContractsCount ?? 0;
+              const chargeConfigs = building.chargeConfigs ?? [];
 
+              return (
+            <Card
+              key={building.id}
+              className="hover:border-[#C8B8A8] transition-all flex flex-col justify-between"
+              title={
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[#EBF0ED] text-[#3F594F] flex items-center justify-center font-medium shrink-0">
+                    <Building2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-semibold text-[#252724] tracking-tight">{building.name}</h3>
+                    <p className="text-xs text-[#73766F] font-normal">{building.address}</p>
+                  </div>
+                </div>
+              }
+              action={
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-[#A84646] hover:bg-[#FDF0F0] hover:text-[#A84646] p-2"
+                  title="Lưu trữ tòa nhà"
+                  onClick={() => handleArchive(building.id)}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              }
+            >
+              <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-3 text-xs">
                   <div className="bg-[#F8F7F4] p-3 rounded-xl border border-[#E8E5DF]">
                     <div className="flex items-center gap-1.5 text-[#73766F] mb-1">
                       <DoorOpen className="w-3.5 h-3.5" />
-                      <span>Tổng phòng</span>
+                      <span>Tổng số phòng</span>
                     </div>
-                    <span className="text-lg font-semibold text-[#252724]">{b.totalRooms ?? 0} phòng</span>
+                    <span className="text-lg font-semibold text-[#252724]">{roomsCount} phòng</span>
                   </div>
                   <div className="bg-[#EBF3ED] p-3 rounded-xl border border-[#D1E3D5]">
                     <div className="flex items-center gap-1.5 text-[#3E6148] mb-1">
                       <Building2 className="w-3.5 h-3.5" />
-                      <span>Trạng thái</span>
+                      <span>Hợp đồng đang thuê</span>
                     </div>
-                    <span className="text-lg font-semibold text-[#3E6148]">Hoạt động</span>
+                    <span className="text-lg font-semibold text-[#3E6148]">{activeContractsCount} hợp đồng</span>
                   </div>
                 </div>
 
-                {b.bankAccount && (
+                {(building.bankAccountNo || building.bankName) && (
                   <div className="flex items-center gap-2 text-xs text-[#73766F] bg-[#F2EFE9]/50 p-2.5 rounded-xl border border-[#E8E5DF]/60">
                     <CreditCard className="w-4 h-4 text-[#3F594F] shrink-0" />
                     <span className="truncate">
-                      {b.bankName || "Ngân hàng"}: <strong className="text-[#252724] font-medium">{b.bankAccount}</strong> ({b.accountHolder})
+                      {building.bankName || "Ngân hàng"}:{" "}
+                      <strong className="text-[#252724] font-medium">{building.bankAccountNo}</strong>{" "}
+                      ({building.bankAccountName})
                     </span>
                   </div>
                 )}
-              </div>
 
-              <div className="pt-4 border-t border-[#F2EFE9] flex items-center justify-between mt-4">
-                <Badge variant="success">Đang quản lý</Badge>
-                <Link to={`/admin/buildings/${b.id}`}>
-                  <Button variant="outline" size="sm" className="text-xs">
-                    <span>Chi Tiết & Cấu Hình</span>
-                    <ArrowRight className="w-3.5 h-3.5 text-[#73766F]" />
-                  </Button>
-                </Link>
+                <div className="pt-2 border-t border-[#F2EFE9]">
+                  <span className="text-[11px] font-semibold text-[#73766F] uppercase tracking-wider block mb-2">
+                    Phí dịch vụ mặc định ({chargeConfigs.length} khoản):
+                  </span>
+                  {chargeConfigs.length === 0 ? (
+                    <p className="text-xs text-[#A3A69F] italic">Chưa thiết lập đơn giá dịch vụ cấp Tòa nhà</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-1.5">
+                      {chargeConfigs.map((charge) => (
+                        <Badge key={charge.id} variant="neutral" className="text-[11px]">
+                          {charge.chargeType}: {charge.unitPrice.toLocaleString("vi-VN")}đ
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="pt-3 border-t border-[#F2EFE9] flex items-center justify-between">
+                  <Badge variant="success">Hoạt động tốt</Badge>
+                  <Link to={`/admin/buildings/${building.id}`}>
+                    <Button variant="outline" size="sm" className="text-xs">
+                      <span>Chi Tiết & Cấu Hình</span>
+                      <ArrowRight className="w-3.5 h-3.5 text-[#73766F]" />
+                    </Button>
+                  </Link>
+                </div>
               </div>
             </Card>
+              );
+            })()
           ))}
         </div>
       )}

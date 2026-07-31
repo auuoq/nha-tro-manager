@@ -37,6 +37,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const res = await authApi.login({ phone, password });
     const userData = res.user;
     setUser(userData);
+    localStorage.setItem("accessToken", res.accessToken);
+    localStorage.setItem("refreshToken", res.refreshToken);
     localStorage.setItem("currentUser", JSON.stringify(userData));
     return userData;
   };
@@ -48,6 +50,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Ignore logout errors
     } finally {
       setUser(null);
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("refreshToken");
       localStorage.removeItem("currentUser");
     }
   };

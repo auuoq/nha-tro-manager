@@ -14,13 +14,10 @@ export const authApi = {
     await apiClient.post("/auth/change-password", { oldPassword, newPassword });
   },
   logout: async (): Promise<void> => {
-    const refreshToken = localStorage.getItem("refreshToken");
-    if (refreshToken) {
-      try {
-        await apiClient.post("/auth/logout", { refreshToken });
-      } catch {
-        // Ignore logout errors
-      }
+    try {
+      await apiClient.post("/auth/logout");
+    } catch {
+      // Ignore logout errors
     }
   },
 };

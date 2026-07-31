@@ -7,33 +7,33 @@ import { useAuth } from "@/auth/hooks/use-auth";
 
 const ownerSections: SidebarNavSection[] = [
   {
-    title: "TỔNG QUAN",
+    title: "Tổng Quan",
     items: [
-      { label: "Dashboard", href: "/admin/dashboard", iconName: "dashboard" },
+      { label: "Tổng Quan", href: "/admin/dashboard", iconName: "dashboard" },
+      { label: "Tòa Nhà", href: "/admin/buildings", iconName: "building" },
+      { label: "Sơ Đồ Phòng", href: "/admin/rooms", iconName: "room" },
     ],
   },
   {
-    title: "QUẢN LÝ VẬN HÀNH",
+    title: "Vận Hành",
     items: [
-      { label: "Tòa nhà", href: "/admin/buildings", iconName: "building" },
-      { label: "Phòng trọ", href: "/admin/rooms", iconName: "room" },
-      { label: "Khách thuê", href: "/admin/tenants", iconName: "tenant" },
-      { label: "Hợp đồng", href: "/admin/contracts", iconName: "contract" },
+      { label: "Khách Thuê", href: "/admin/tenants", iconName: "tenant" },
+      { label: "Hợp Đồng", href: "/admin/contracts", iconName: "contract" },
+      { label: "Chốt Điện Nước", href: "/admin/meters", iconName: "meter" },
+      { label: "Báo Hỏng", href: "/admin/maintenance", iconName: "maintenance" },
     ],
   },
   {
-    title: "ĐIỆN NƯỚC & HÓA ĐƠN",
+    title: "Tài Chính",
     items: [
-      { label: "Chỉ số điện nước", href: "/admin/meters", iconName: "meter" },
-      { label: "Hóa đơn", href: "/admin/invoices", iconName: "invoice" },
-      { label: "Thanh toán", href: "/admin/payments", iconName: "payment" },
+      { label: "Hóa Đơn", href: "/admin/invoices", iconName: "invoice" },
+      { label: "Thanh Toán", href: "/admin/payments", iconName: "payment" },
     ],
   },
   {
-    title: "YÊU CẦU & HỆ THỐNG",
+    title: "Hệ Thống",
     items: [
-      { label: "Yêu cầu bảo trì", href: "/admin/maintenance", iconName: "maintenance" },
-      { label: "Nhật ký hoạt động", href: "/admin/audit-logs", iconName: "audit" },
+      { label: "Audit Logs", href: "/admin/audit-logs", iconName: "audit" },
     ],
   },
 ];
@@ -46,20 +46,20 @@ export const OwnerLayout: React.FC = () => {
       <StagingBanner />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar
-          portalTitle="Owner Portal"
+          portalTitle="Owner Management"
           sections={ownerSections}
           userProfile={{
-            name: user?.fullName || "Chủ nhà",
+            name: user?.fullName || "Chủ Nhà",
             role: user?.role || "OWNER",
           }}
         />
-        <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
           <Header
             title="Quản Lý Vận Hành"
-            userName={user?.fullName || "Chủ nhà"}
+            userName={user?.fullName || "Chủ Nhà"}
             userRole={user?.role || "OWNER"}
           />
-          <main className="flex-1 p-6 sm:p-8 max-w-7xl w-full mx-auto animate-fade-in">
+          <main className="flex-1 p-6 md:p-8 overflow-y-auto max-w-7xl w-full mx-auto">
             <Outlet />
           </main>
         </div>

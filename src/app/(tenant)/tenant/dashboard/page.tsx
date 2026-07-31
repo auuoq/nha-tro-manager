@@ -1,29 +1,16 @@
 import React from "react";
 import Link from "next/link";
-import { PageHeader } from "@/components/layout/page-header";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { formatCurrency, formatDate } from "@/lib/formatters";
-import { Home, Receipt, Wrench, Wifi, Calendar, CreditCard, ArrowRight, ShieldCheck } from "lucide-react";
+import { formatCurrency, translateInvoiceStatus } from "@/lib/formatters";
+import { getTenantDashboardStats } from "@/features/dashboard/queries/get-tenant-dashboard-stats.query";
+import { Home, Receipt, Wrench, Wifi, Calendar, CreditCard, ArrowRight, ShieldCheck, CheckCircle2 } from "lucide-react";
 
-export default function TenantDashboardPage() {
-  const currentInvoice = {
-    code: "INV-UAT-001",
-    amount: 5410000,
-    paidAmount: 2000000,
-    remainingAmount: 3410000,
-    dueDate: "05/08/2026",
-    status: "PARTIALLY_PAID",
-  };
-
-  const roomInfo = {
-    roomNumber: "201",
-    buildingName: "Tòa UAT Yên Hòa",
-    address: "Yên Hòa, Cầu Giấy, Hà Nội",
-    wifiInfo: "YenHoa_F2 / Pass: 12345678",
-    contractEnd: "30/07/2027",
-  };
+export default async function TenantDashboardPage() {
+  const stats = await getTenantDashboardStats();
+  const currentInvoice = stats.currentInvoice;
+  const statusInfo = currentInvoice ? translateInvoiceStatus(currentInvoice.status) : null;
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -36,7 +23,7 @@ export default function TenantDashboardPage() {
             <span>Cổng Thông Tin Khách Thuê</span>
           </div>
           <h2 className="text-xl sm:text-2xl font-serif font-normal text-white tracking-tight">
-            Xin chào Nguyễn Văn UAT 🌿
+            Xin chào {stats.greetingName} 🌿
           </h2>
           <p className="text-xs text-[#A3A9A1]">
             Theo dõi hóa đơn tiền phòng, lịch sử thanh toán và thông tin tiện ích phòng trọ của bạn.
@@ -72,42 +59,50 @@ export default function TenantDashboardPage() {
                   <Receipt className="w-4 h-4 text-[#3F594F]" />
                   <span>Hóa Đơn Cần Thanh Toán Kỳ Này</span>
                 </div>
-                <Badge variant="warning">Thanh toán một phần</Badge>
+                {statusInfo && <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>}
               </div>
             }
           >
-            <div className="space-y-5">
-              <div className="p-4 rounded-xl bg-[#F8F7F4] border border-[#E8E5DF] flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-[#73766F]">Mã Hóa Đơn: <strong className="text-[#252724] font-medium">{currentInvoice.code}</strong></p>
-                  <p className="text-xs text-[#73766F] mt-0.5">Hạn thanh toán: <strong className="text-[#A84646] font-semibold">{currentInvoice.dueDate}</strong></p>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs text-[#73766F]">Tổng tiền hóa đơn</p>
-                  <p className="text-sm font-semibold text-[#252724]">{formatCurrency(currentInvoice.amount)}</p>
-                </div>
+            {!currentInvoice ? (
+              <div className="py-8 text-center text-xs text-[#73766F] space-y-2">
+                <CheckCircle2 className="w-8 h-8 text-[#3E6148] mx-auto opacity-80" />
+                <p className="font-medium text-[#252724]">Hiện không có hóa đơn cần thanh toán</p>
+                <p className="text-[11px] text-[#A3A69F]">Bạn đã hoàn tất tất cả nghĩa vụ tài chính kỳ này.</p>
               </div>
+            ) : (
+              <div className="space-y-5">
+                <div className="p-4 rounded-xl bg-[#F8F7F4] border border-[#E8E5DF] flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-[#73766F]">Mã Hóa Đơn: <strong className="text-[#252724] font-medium">{currentInvoice.code}</strong></p>
+                    <p className="text-xs text-[#73766F] mt-0.5">Hạn thanh toán: <strong className="text-[#A84646] font-semibold">{currentInvoice.dueDate}</strong></p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-[#73766F]">Tổng tiền hóa đơn</p>
+                    <p className="text-sm font-semibold text-[#252724]">{formatCurrency(currentInvoice.amount)}</p>
+                  </div>
+                </div>
 
-              <div className="p-4 rounded-xl bg-[#EBF3ED] border border-[#D1E3D5] flex items-center justify-between">
-                <div>
-                  <span className="text-xs text-[#3E6148] font-medium block">Số tiền còn thiếu cần trả:</span>
-                  <h3 className="text-2xl font-bold text-[#3E6148] tracking-tight mt-0.5">
-                    {formatCurrency(currentInvoice.remainingAmount)}
-                  </h3>
+                <div className="p-4 rounded-xl bg-[#EBF3ED] border border-[#D1E3D5] flex items-center justify-between">
+                  <div>
+                    <span className="text-xs text-[#3E6148] font-medium block">Số tiền còn thiếu cần trả:</span>
+                    <h3 className="text-2xl font-bold text-[#3E6148] tracking-tight mt-0.5">
+                      {formatCurrency(currentInvoice.remainingAmount)}
+                    </h3>
+                  </div>
+                  <Link href={`/tenant/invoices/${currentInvoice.id}`}>
+                    <Button variant="primary" size="md">
+                      <span>Quét Mã VietQR</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </Button>
+                  </Link>
                 </div>
-                <Link href="/tenant/invoices">
-                  <Button variant="primary" size="md">
-                    <span>Quét Mã VietQR</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </Button>
-                </Link>
-              </div>
 
-              <div className="text-xs text-[#73766F] space-y-1 pt-1">
-                <p>• Đã thanh toán trước đó: <strong>{formatCurrency(currentInvoice.paidAmount)}</strong></p>
-                <p>• Sau khi chuyển khoản, hệ thống sẽ tự động đối soát và cập nhật trạng thái hóa đơn của bạn trong vòng vài giây.</p>
+                <div className="text-xs text-[#73766F] space-y-1 pt-1">
+                  <p>• Đã thanh toán trước đó: <strong>{formatCurrency(currentInvoice.paidAmount)}</strong></p>
+                  <p>• Sau khi chuyển khoản, hệ thống sẽ tự động đối soát và cập nhật trạng thái hóa đơn của bạn trong vòng vài giây.</p>
+                </div>
               </div>
-            </div>
+            )}
           </Card>
         </div>
 
@@ -123,9 +118,9 @@ export default function TenantDashboardPage() {
           >
             <div className="space-y-4 text-xs">
               <div className="p-3.5 rounded-xl bg-[#F8F7F4] border border-[#E8E5DF] space-y-1">
-                <p className="text-base font-bold text-[#252724]">Phòng {roomInfo.roomNumber}</p>
-                <p className="text-xs text-[#52554E] font-medium">{roomInfo.buildingName}</p>
-                <p className="text-[11px] text-[#73766F]">{roomInfo.address}</p>
+                <p className="text-base font-bold text-[#252724]">Phòng {stats.roomNumber}</p>
+                <p className="text-xs text-[#52554E] font-medium">{stats.buildingName}</p>
+                <p className="text-[11px] text-[#73766F]">{stats.buildingAddress}</p>
               </div>
 
               <div className="p-3.5 rounded-xl bg-[#EEF4F8] border border-[#D4E3ED] flex items-center gap-3">
@@ -134,7 +129,7 @@ export default function TenantDashboardPage() {
                 </div>
                 <div>
                   <p className="text-xs font-semibold text-[#252724]">Mật Khẩu Internet / Wifi</p>
-                  <p className="text-xs text-[#4D6779] font-mono mt-0.5">{roomInfo.wifiInfo}</p>
+                  <p className="text-xs text-[#4D6779] font-mono mt-0.5">{stats.wifiInfo}</p>
                 </div>
               </div>
 
@@ -144,7 +139,7 @@ export default function TenantDashboardPage() {
                 </div>
                 <div>
                   <p className="text-xs font-semibold text-[#252724]">Hạn Hợp Đồng Thuê</p>
-                  <p className="text-xs text-[#73766F] mt-0.5">Thời hạn đến: {roomInfo.contractEnd}</p>
+                  <p className="text-xs text-[#73766F] mt-0.5">Thời hạn đến: {stats.contractEnd}</p>
                 </div>
               </div>
             </div>

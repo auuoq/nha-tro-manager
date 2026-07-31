@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { ImageUploadDropzone } from "@/components/ui/image-upload-dropzone";
 import { recordMeterReadingAction } from "../actions/record-meter-reading.action";
 import { MeterDTO } from "../types/meter.types";
 
@@ -33,17 +34,14 @@ export const MeterReadingFormDialog: React.FC<MeterReadingFormDialogProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleFileSelect = (file: File | null, base64?: string) => {
+    if (!file || !base64) {
+      setFilename(undefined);
+      setImageBase64(undefined);
+      return;
+    }
     setFilename(file.name);
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      const base64 = (reader.result as string).split(",")[1];
-      setImageBase64(base64);
-    };
-    reader.readAsDataURL(file);
+    setImageBase64(base64);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -82,7 +80,7 @@ export const MeterReadingFormDialog: React.FC<MeterReadingFormDialogProps> = ({
       maxWidth="md"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
-        {error && <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg">{error}</div>}
+        {error && <div className="p-3 bg-[#FDF0F0] border border-[#F5D5D5] text-[#A84646] text-xs rounded-xl font-medium">{error}</div>}
 
         <div className="grid grid-cols-2 gap-3">
           <Input label="Kỳ Chốt (YYYY-MM) (*)" placeholder="2026-07" value={period} onChange={(e) => setPeriod(e.target.value)} required />
@@ -91,22 +89,23 @@ export const MeterReadingFormDialog: React.FC<MeterReadingFormDialogProps> = ({
 
         <div className="grid grid-cols-2 gap-3">
           <Input label="Chỉ Số Kỳ Mới (*)" type="number" value={currentValue} onChange={(e) => setCurrentValue(Number(e.target.value))} required />
-          <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 flex flex-col justify-center">
-            <span className="text-xs text-slate-500 block">Lượng Tiêu Thụ Tính Được:</span>
-            <span className={`text-base font-bold font-mono ${consumption < 0 ? "text-red-600" : "text-emerald-600"}`}>
+          <div className="bg-[#F8F7F4] p-3 rounded-2xl border border-[#E8E5DF] flex flex-col justify-center">
+            <span className="text-[11px] text-[#73766F] font-medium block">Lượng Tiêu Thụ Tính Được:</span>
+            <span className={`text-base font-bold font-mono ${consumption < 0 ? "text-[#A84646]" : "text-[#3E6148]"}`}>
               {consumption >= 0 ? `+${consumption}` : consumption} {meter.type === "ELECTRICITY" ? "kWh" : "m³"}
             </span>
           </div>
         </div>
 
-        <div>
-          <label className="block text-xs font-semibold text-slate-700 mb-1">Upload Ảnh Bằng Chứng Chốt Đồng Hồ (Tùy chọn)</label>
-          <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleFileChange} className="text-xs text-slate-500 block w-full" />
-        </div>
+        {/* High-End Boutique Image Upload Dropzone */}
+        <ImageUploadDropzone
+          label="Upload Ảnh Bằng Chứng Chốt Đồng Hồ (Tùy chọn)"
+          onFileSelect={handleFileSelect}
+        />
 
         <Input label="Ghi Chú Chốt Số" placeholder="Khách báo chụp ngày..." value={note} onChange={(e) => setNote(e.target.value)} />
 
-        <div className="flex justify-end gap-3 mt-6 pt-3 border-t border-slate-100">
+        <div className="flex justify-end gap-3 mt-6 pt-3.5 border-t border-[#F2EFE9]">
           <Button type="button" variant="ghost" onClick={onClose} disabled={loading}>
             Hủy
           </Button>

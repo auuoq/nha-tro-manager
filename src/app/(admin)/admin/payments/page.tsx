@@ -20,6 +20,7 @@ export default function AdminPaymentsPage() {
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [methodFilter, setMethodFilter] = useState<string>("");
   const [activeTab, setActiveTab] = useState<"ALL" | "UNMATCHED">("ALL");
+  
   const [isManualOpen, setIsManualOpen] = useState(false);
   const [selectedInvoiceId, setSelectedInvoiceId] = useState("");
   const [selectedInvoiceCode, setSelectedInvoiceCode] = useState("");
@@ -39,10 +40,8 @@ export default function AdminPaymentsPage() {
   }, [statusFilter, methodFilter]);
 
   const handleOpenManual = () => {
-    const invId = prompt("Nhập ID Hóa Đơn cần ghi nhận thanh toán thủ công:");
-    if (!invId || !invId.trim()) return;
-    setSelectedInvoiceId(invId.trim());
-    setSelectedInvoiceCode(invId.trim().slice(0, 8));
+    setSelectedInvoiceId("");
+    setSelectedInvoiceCode("");
     setIsManualOpen(true);
   };
 
@@ -53,25 +52,25 @@ export default function AdminPaymentsPage() {
         description="Lịch sử giao dịch tiền mặt, chuyển khoản thủ công và webhook ngân hàng tự động"
         action={
           <Button variant="primary" size="sm" onClick={handleOpenManual}>
-            💵 Ghi Nhận Thanh Toán Thủ Công
+            <span>💵 Ghi Nhận Thanh Toán Thủ Công</span>
           </Button>
         }
       />
 
-      <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+      <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center bg-white p-4 rounded-2xl border border-[#E8E5DF] shadow-[0_2px_8px_rgba(0,0,0,0.03)]">
         <div className="flex gap-2">
           <button
             onClick={() => setActiveTab("ALL")}
-            className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-              activeTab === "ALL" ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+            className={`px-4 py-2 text-xs font-semibold rounded-xl transition-all cursor-pointer ${
+              activeTab === "ALL" ? "bg-[#1F2421] text-white" : "bg-[#F8F7F4] text-[#73766F] hover:bg-[#F2EFE9]"
             }`}
           >
             Tất Cả Giao Dịch ({payments.length})
           </button>
           <button
             onClick={() => setActiveTab("UNMATCHED")}
-            className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-              activeTab === "UNMATCHED" ? "bg-amber-600 text-white" : "bg-amber-50 text-amber-800 hover:bg-amber-100"
+            className={`px-4 py-2 text-xs font-semibold rounded-xl transition-all cursor-pointer ${
+              activeTab === "UNMATCHED" ? "bg-[#A36E35] text-white" : "bg-[#FBF3E8] text-[#A36E35] hover:bg-[#F5E0C9]"
             }`}
           >
             ⚠️ Webhook Bị Thất Lạc ({unmatchedEvents.length})
@@ -83,7 +82,7 @@ export default function AdminPaymentsPage() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="h-9 rounded-md border border-slate-300 px-3 bg-white focus:outline-none"
+              className="h-10 rounded-xl border border-[#E8E5DF] px-3 bg-white text-xs text-[#252724] focus:outline-none focus:border-[#3F594F]"
             >
               <option value="">-- Tất cả trạng thái --</option>
               <option value="CONFIRMED">Đã xác nhận</option>
@@ -94,35 +93,31 @@ export default function AdminPaymentsPage() {
             <select
               value={methodFilter}
               onChange={(e) => setMethodFilter(e.target.value)}
-              className="h-9 rounded-md border border-slate-300 px-3 bg-white focus:outline-none"
+              className="h-10 rounded-xl border border-[#E8E5DF] px-3 bg-white text-xs text-[#252724] focus:outline-none focus:border-[#3F594F]"
             >
               <option value="">-- Tất cả phương thức --</option>
               <option value="CASH">Tiền mặt</option>
-              <option value="BANK_TRANSFER">CK thủ công</option>
-              <option value="BANK_WEBHOOK">Bank Webhook</option>
-              <option value="VIETQR">VietQR</option>
+              <option value="BANK_TRANSFER">Chuyển khoản thủ công</option>
+              <option value="VIETQR">VietQR Tự động</option>
+              <option value="OTHER">Khác</option>
             </select>
           </div>
         )}
       </div>
 
-      {loading ? (
-        <div className="p-8 text-center text-slate-500">Đang tải lịch sử thanh toán...</div>
-      ) : activeTab === "ALL" ? (
-        <PaymentListTable payments={payments} isOwner={true} onRefresh={fetchPayments} />
+      {activeTab === "ALL" ? (
+        <PaymentListTable payments={payments} onRefresh={fetchPayments} />
       ) : (
         <UnmatchedWebhookTable events={unmatchedEvents} onRefresh={fetchPayments} />
       )}
 
-      {isManualOpen && selectedInvoiceId && (
-        <ManualPaymentDialog
-          isOpen={isManualOpen}
-          onClose={() => setIsManualOpen(false)}
-          onSuccess={fetchPayments}
-          invoiceId={selectedInvoiceId}
-          invoiceCode={selectedInvoiceCode}
-        />
-      )}
+      <ManualPaymentDialog
+        isOpen={isManualOpen}
+        onClose={() => setIsManualOpen(false)}
+        onSuccess={fetchPayments}
+        invoiceId={selectedInvoiceId}
+        invoiceCode={selectedInvoiceCode}
+      />
     </div>
   );
 }

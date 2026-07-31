@@ -1,43 +1,39 @@
 import React from "react";
 import Link from "next/link";
-import { PageHeader } from "@/components/layout/page-header";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Users, Building2, UserCheck, ShieldCheck, ArrowRight, Sparkles, Plus } from "lucide-react";
+import { getSuperAdminDashboardStats } from "@/features/dashboard/queries/get-super-admin-dashboard-stats.query";
+import { Users, Building2, UserCheck, ArrowRight, Sparkles, Plus, CheckCircle2 } from "lucide-react";
 
-export default function SuperAdminDashboardPage() {
-  const stats = [
+export default async function SuperAdminDashboardPage() {
+  const stats = await getSuperAdminDashboardStats();
+
+  const statCards = [
     {
       title: "Tổng Số Chủ Nhà (Owners)",
-      value: "12 Chủ nhà",
-      subtext: "10 Đang hoạt động, 2 Tạm khóa",
+      value: `${stats.totalOwners} Chủ nhà`,
+      subtext: `${stats.activeOwners} Đang hoạt động, ${stats.suspendedOwners} Tạm khóa`,
       icon: Users,
       badge: "Hệ thống v1.0",
       variant: "success" as const,
     },
     {
       title: "Tổng Tòa Nhà Vận Hành",
-      value: "28 Tòa nhà",
-      subtext: "Tổng số 340 phòng trọ toàn sàn",
+      value: `${stats.totalBuildings} Tòa nhà`,
+      subtext: `Tổng số ${stats.totalRooms} phòng trọ toàn sàn`,
       icon: Building2,
-      badge: "Tăng trưởng +4",
+      badge: stats.totalBuildings > 0 ? "Vận hành tốt" : "Khởi tạo",
       variant: "info" as const,
     },
     {
       title: "Tổng Khách Thuê Hoạt Động",
-      value: "295 Khách thuê",
-      subtext: "Tỷ lệ lấp đầy toàn sàn 86.7%",
+      value: `${stats.totalTenants} Khách thuê`,
+      subtext: `Tỷ lệ lấp đầy toàn sàn ${stats.platformOccupancyRate}%`,
       icon: UserCheck,
-      badge: "86.7% Lấp đầy",
+      badge: `${stats.platformOccupancyRate}% Lấp đầy`,
       variant: "success" as const,
     },
-  ];
-
-  const recentOwners = [
-    { name: "Chủ Nhà UAT", phone: "0987654321", business: "Owner UAT Business", buildingsCount: 2, status: "ACTIVE" },
-    { name: "Nguyễn Văn An", phone: "0912345678", business: "An Phu Apartment", buildingsCount: 5, status: "ACTIVE" },
-    { name: "Trần Thị Bích", phone: "0934567890", business: "Bich House Rental", buildingsCount: 1, status: "SUSPENDED" },
   ];
 
   return (
@@ -54,7 +50,7 @@ export default function SuperAdminDashboardPage() {
             Tổng quan nền tảng Nhà Trọ Manager
           </h2>
           <p className="text-xs text-[#A3A9A1]">
-            Theo dõi danh sách Chủ nhà, quy mô tòa nhà vận hành và nhật ký Audit Log toàn sàn.
+            Theo dõi danh sách Chủ nhà, quy mô tòa nhà vận hành và nhật ký Audit Log toàn sàn theo thời gian thực.
           </p>
         </div>
 
@@ -70,19 +66,19 @@ export default function SuperAdminDashboardPage() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {stats.map((s, idx) => {
+        {statCards.map((s, idx) => {
           const Icon = s.icon;
           return (
-            <Card key={idx} className="hover:border-[#C8B8A8] transition-all p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-10 h-10 rounded-xl bg-[#F2EFE9] text-[#3F594F] flex items-center justify-center">
+            <Card key={idx} className="hover:border-[#C8B8A8] transition-all p-6 min-w-0">
+              <div className="flex items-center justify-between gap-2 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-[#F2EFE9] text-[#3F594F] flex items-center justify-center shrink-0">
                   <Icon className="w-5 h-5" />
                 </div>
-                <Badge variant={s.variant}>{s.badge}</Badge>
+                <Badge variant={s.variant} className="whitespace-nowrap shrink-0">{s.badge}</Badge>
               </div>
-              <p className="text-xs text-[#73766F] font-medium">{s.title}</p>
-              <h3 className="text-2xl font-semibold text-[#252724] tracking-tight mt-1">{s.value}</h3>
-              <p className="text-xs text-[#A3A69F] mt-1">{s.subtext}</p>
+              <p className="text-xs text-[#73766F] font-medium truncate">{s.title}</p>
+              <h3 className="text-2xl font-semibold text-[#252724] tracking-tight mt-1 whitespace-nowrap">{s.value}</h3>
+              <p className="text-xs text-[#A3A69F] mt-1 truncate">{s.subtext}</p>
             </Card>
           );
         })}
@@ -103,34 +99,42 @@ export default function SuperAdminDashboardPage() {
           </div>
         }
       >
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead>
-              <tr className="border-b border-[#E8E5DF] text-[#73766F] font-semibold bg-[#F2EFE9]/50">
-                <th className="py-3 px-4 rounded-l-xl">Tên Chủ Nhà</th>
-                <th className="py-3 px-4">Số Điện Thoại</th>
-                <th className="py-3 px-4">Tên Doanh Nghiệp</th>
-                <th className="py-3 px-4 text-center">Số Tòa Nhà</th>
-                <th className="py-3 px-4 rounded-r-xl text-center">Trạng Thái</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#F2EFE9]">
-              {recentOwners.map((o) => (
-                <tr key={o.phone} className="hover:bg-[#F8F7F4] transition-colors">
-                  <td className="py-3.5 px-4 font-semibold text-[#252724]">{o.name}</td>
-                  <td className="py-3.5 px-4 text-[#52554E] font-mono">{o.phone}</td>
-                  <td className="py-3.5 px-4 text-[#52554E]">{o.business}</td>
-                  <td className="py-3.5 px-4 text-center font-medium text-[#252724]">{o.buildingsCount} tòa</td>
-                  <td className="py-3.5 px-4 text-center">
-                    <Badge variant={o.status === "ACTIVE" ? "success" : "danger"}>
-                      {o.status === "ACTIVE" ? "Đang hoạt động" : "Tạm khóa"}
-                    </Badge>
-                  </td>
+        {stats.recentOwners.length === 0 ? (
+          <div className="py-8 text-center text-xs text-[#73766F] space-y-2">
+            <CheckCircle2 className="w-8 h-8 text-[#3F594F] mx-auto opacity-70" />
+            <p className="font-medium text-[#252724]">Chưa có chủ nhà nào trong hệ thống</p>
+            <p className="text-[11px] text-[#A3A69F]">Nhấn nút "Cấp Tài Khoản Chủ Nhà" ở trên để khởi tạo chủ nhà đầu tiên.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="border-b border-[#E8E5DF] text-[#73766F] font-semibold bg-[#F2EFE9]/50">
+                  <th className="py-3 px-4 rounded-l-xl">Tên Chủ Nhà</th>
+                  <th className="py-3 px-4">Số Điện Thoại</th>
+                  <th className="py-3 px-4">Tên Doanh Nghiệp</th>
+                  <th className="py-3 px-4 text-center">Số Tòa Nhà</th>
+                  <th className="py-3 px-4 rounded-r-xl text-center">Trạng Thái</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-[#F2EFE9]">
+                {stats.recentOwners.map((o) => (
+                  <tr key={o.id} className="hover:bg-[#F8F7F4] transition-colors">
+                    <td className="py-3.5 px-4 font-semibold text-[#252724]">{o.name}</td>
+                    <td className="py-3.5 px-4 text-[#52554E] font-mono">{o.phone}</td>
+                    <td className="py-3.5 px-4 text-[#52554E]">{o.businessName}</td>
+                    <td className="py-3.5 px-4 text-center font-medium text-[#252724]">{o.buildingsCount} tòa</td>
+                    <td className="py-3.5 px-4 text-center">
+                      <Badge variant={o.status === "ACTIVE" ? "success" : "danger"}>
+                        {o.status === "ACTIVE" ? "Đang hoạt động" : "Tạm khóa"}
+                      </Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Card>
     </div>
   );

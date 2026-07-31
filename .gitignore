@@ -44,3 +44,15 @@ next-env.d.ts
 /storage/
 /storage/private-*
 *.pem
+
+# Python & virtualenv
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Playwright & test artifacts
+test-results/
+playwright-report/
+

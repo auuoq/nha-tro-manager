@@ -40,6 +40,7 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans), Inter, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), monospace;
+  --font-serif: var(--font-serif), Lora, Georgia, serif;
 }
 
 * {

@@ -1,10 +1,10 @@
 import React from "react";
 import Link from "next/link";
-import { PageHeader } from "@/components/layout/page-header";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatCurrency, translateInvoiceStatus } from "@/lib/formatters";
+import { getAdminDashboardStats } from "@/features/dashboard/queries/get-admin-dashboard-stats.query";
 import {
   Building2,
   DoorOpen,
@@ -17,10 +17,13 @@ import {
   Zap,
   Receipt,
   FileText,
-  Sparkles
+  Sparkles,
+  CheckCircle2
 } from "lucide-react";
 
-export default function AdminDashboardPage() {
+export default async function AdminDashboardPage() {
+  const stats = await getAdminDashboardStats();
+
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return "Chào buổi sáng ☀️";
@@ -31,82 +34,44 @@ export default function AdminDashboardPage() {
   const kpis = [
     {
       title: "Tỷ lệ Lấp Đầy",
-      value: "85%",
-      subtext: "17 / 20 phòng đang thuê",
+      value: `${stats.occupancyRate}%`,
+      subtext: `${stats.rentedRooms} / ${stats.totalRooms} phòng đang thuê`,
       icon: DoorOpen,
-      badge: "85% Hoạt động",
+      badge: `${stats.occupancyRate}% Hoạt động`,
       variant: "success" as const,
     },
     {
       title: "Doanh Thu Tháng Này",
-      value: formatCurrency(68500000),
-      subtext: `Đã thu: ${formatCurrency(52000000)}`,
+      value: formatCurrency(stats.monthlyRevenue),
+      subtext: `Đã thu: ${formatCurrency(stats.collectedRevenue)}`,
       icon: TrendingUp,
-      badge: "+12% so tháng trước",
+      badge: stats.monthlyRevenue > 0 ? "+Doanh thu" : "Chưa phát hành",
       variant: "success" as const,
     },
     {
       title: "Công Nợ Chưa Thu",
-      value: formatCurrency(16500000),
-      subtext: "3 hóa đơn chưa thanh toán",
+      value: formatCurrency(stats.unpaidDebt),
+      subtext: `${stats.unpaidInvoicesCount} hóa đơn chưa thu đủ`,
       icon: AlertCircle,
-      badge: "Cần theo dõi",
-      variant: "danger" as const,
+      badge: stats.unpaidDebt > 0 ? "Cần theo dõi" : "Không có nợ",
+      variant: stats.unpaidDebt > 0 ? ("danger" as const) : ("success" as const),
     },
     {
       title: "Số Tòa Nhà Vận Hành",
-      value: "2 Tòa nhà",
-      subtext: "Tòa UAT Yên Hòa & Cầu Giấy",
+      value: `${stats.totalBuildings} Tòa nhà`,
+      subtext: stats.buildingNamesSummary,
       icon: Building2,
-      badge: "Hoạt động tốt",
+      badge: stats.totalBuildings > 0 ? "Hoạt động tốt" : "Khởi tạo",
       variant: "info" as const,
     },
     {
       title: "Báo Hỏng Đang Xử Lý",
-      value: "2 Yêu cầu",
-      subtext: "1 sự cố ưu tiên cao",
+      value: `${stats.pendingMaintenanceCount} Yêu cầu`,
+      subtext: stats.urgentMaintenanceCount > 0 ? `${stats.urgentMaintenanceCount} sự cố ưu tiên cao` : "Trạng thái bình thường",
       icon: Wrench,
-      badge: "Đang xử lý",
-      variant: "warning" as const,
+      badge: stats.pendingMaintenanceCount > 0 ? "Đang xử lý" : "Sạch sự cố",
+      variant: stats.pendingMaintenanceCount > 0 ? ("warning" as const) : ("success" as const),
     },
-  ];
-
-  const actionItems = [
-    {
-      id: "act-1",
-      title: "Chốt chỉ số Điện/Nước tháng 07",
-      desc: "Còn 3 phòng chưa chốt chỉ số điện nước cuối kỳ",
-      link: "/admin/meters",
-      btnText: "Chốt chỉ số",
-      tag: "Vận hành",
-    },
-    {
-      id: "act-2",
-      title: "Duyệt báo hỏng Phòng 201 - Điều hòa kêu to",
-      desc: "Khách thuê Nguyễn Văn UAT vừa gửi báo hỏng sáng nay",
-      link: "/admin/maintenance",
-      btnText: "Xem yêu cầu",
-      tag: "Sự cố",
-    },
-    {
-      id: "act-3",
-      title: "Gửi nhắc nhở hóa đơn quá hạn",
-      desc: `Hóa đơn INV-UAT-001 quá hạn 5 ngày (${formatCurrency(410000)})`,
-      link: "/admin/invoices",
-      btnText: "Gửi nhắc nhở",
-      tag: "Tài chính",
-    },
-  ];
-
-  const overdueInvoices = [
-    { code: "INV-202607-001", room: "Phòng 201", tenant: "Nguyễn Văn UAT", amount: 410000, dueDate: "25/07/2026", statusCode: "PARTIALLY_PAID" },
-    { code: "INV-202607-004", room: "Phòng 102", tenant: "Trần Thị Mai", amount: 4800000, dueDate: "20/07/2026", statusCode: "OVERDUE" },
-    { code: "INV-202607-009", room: "Phòng 304", tenant: "Lê Hoàng Nam", amount: 5100000, dueDate: "22/07/2026", statusCode: "OVERDUE" },
-  ];
-
-  const expiringContracts = [
-    { code: "HD-201-UAT", room: "Phòng 201", tenant: "Nguyễn Văn UAT", endDate: "15/08/2026", daysLeft: "16 ngày" },
-    { code: "HD-104-CG", room: "Phòng 104", tenant: "Phạm Minh Đức", endDate: "20/08/2026", daysLeft: "21 ngày" },
   ];
 
   return (
@@ -117,13 +82,13 @@ export default function AdminDashboardPage() {
         <div className="relative z-10 space-y-1.5 max-w-xl">
           <div className="flex items-center gap-2 text-xs font-semibold text-[#C8B8A8] tracking-wider uppercase">
             <Sparkles className="w-3.5 h-3.5" />
-            <span>{getGreeting()}, Chủ Nhà</span>
+            <span>{getGreeting()}, {stats.greetingName}</span>
           </div>
           <h2 className="text-xl sm:text-2xl font-serif font-normal text-white tracking-tight">
             Tổng quan hiệu suất & danh mục nhà trọ hôm nay
           </h2>
           <p className="text-xs text-[#A3A9A1]">
-            Hệ thống tự động đồng bộ doanh thu, chỉ số điện nước và trạng thái công nợ theo thời gian thực.
+            Hệ thống tự động đồng bộ doanh thu, chỉ số điện nước và trạng thái công nợ theo thời gian thực từ cơ sở dữ liệu.
           </p>
         </div>
 
@@ -144,20 +109,22 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* KPI Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 2xl:grid-cols-5 gap-3.5 sm:gap-4">
         {kpis.map((kpi, idx) => {
           const Icon = kpi.icon;
           return (
-            <Card key={idx} className="hover:border-[#C8B8A8] transition-all p-5 hover:-translate-y-0.5">
-              <div className="flex items-center justify-between mb-3">
-                <div className="w-9 h-9 rounded-xl bg-[#F2EFE9] text-[#3F594F] flex items-center justify-center">
+            <Card key={idx} className="hover:border-[#C8B8A8] transition-all p-4 sm:p-4.5 hover:-translate-y-0.5 min-w-0 flex flex-col justify-between h-full">
+              <div className="flex items-center justify-between gap-2 mb-2.5 min-w-0">
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#F2EFE9] text-[#3F594F] flex items-center justify-center shrink-0">
                   <Icon className="w-4 h-4" />
                 </div>
-                <Badge variant={kpi.variant}>{kpi.badge}</Badge>
+                <Badge variant={kpi.variant} className="whitespace-nowrap shrink-0">{kpi.badge}</Badge>
               </div>
-              <p className="text-xs text-[#73766F] font-medium">{kpi.title}</p>
-              <h3 className="text-lg sm:text-xl font-semibold text-[#252724] tracking-tight mt-1">{kpi.value}</h3>
-              <p className="text-[11px] text-[#A3A69F] mt-1">{kpi.subtext}</p>
+              <div className="min-w-0 space-y-0.5">
+                <p className="text-xs text-[#73766F] font-medium truncate" title={kpi.title}>{kpi.title}</p>
+                <h3 className="text-base sm:text-lg lg:text-xl font-bold text-[#252724] tracking-tight whitespace-nowrap overflow-hidden text-ellipsis mt-1" title={kpi.value}>{kpi.value}</h3>
+                <p className="text-[11px] text-[#A3A69F] truncate" title={kpi.subtext}>{kpi.subtext}</p>
+              </div>
             </Card>
           );
         })}
@@ -175,10 +142,10 @@ export default function AdminDashboardPage() {
                 <span>Việc Cần Xử Lý Sớm</span>
               </div>
             }
-            subtitle="Danh sách tác vụ ưu tiên cho quản lý vận hành"
+            subtitle="Danh sách tác vụ ưu tiên theo thời gian thực"
           >
             <div className="divide-y divide-[#F2EFE9]">
-              {actionItems.map((item) => (
+              {stats.actionItems.map((item) => (
                 <div key={item.id} className="py-4 first:pt-0 last:pb-0 flex items-center justify-between gap-4 hover:bg-[#F8F7F4]/50 p-2 rounded-xl transition-colors">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
@@ -212,39 +179,47 @@ export default function AdminDashboardPage() {
               </div>
             }
           >
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="border-b border-[#E8E5DF] text-[#73766F] font-semibold bg-[#F2EFE9]/50">
-                    <th className="py-2.5 px-3 rounded-l-lg">Mã Hóa Đơn</th>
-                    <th className="py-2.5 px-3">Phòng</th>
-                    <th className="py-2.5 px-3">Khách Thuê</th>
-                    <th className="py-2.5 px-3 text-right">Còn Thiếu</th>
-                    <th className="py-2.5 px-3 rounded-r-lg text-center">Trạng Thái</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#F2EFE9]">
-                  {overdueInvoices.map((inv) => {
-                    const statusInfo = translateInvoiceStatus(inv.statusCode);
-                    return (
-                      <tr key={inv.code} className="hover:bg-[#F8F7F4] transition-colors">
-                        <td className="py-3 px-3 font-medium text-[#252724]">{inv.code}</td>
-                        <td className="py-3 px-3 text-[#52554E]">{inv.room}</td>
-                        <td className="py-3 px-3 text-[#52554E]">{inv.tenant}</td>
-                        <td className="py-3 px-3 text-right font-semibold text-[#A84646]">
-                          {formatCurrency(inv.amount)}
-                        </td>
-                        <td className="py-3 px-3 text-center">
-                          <Badge variant={statusInfo.variant}>
-                            {statusInfo.label}
-                          </Badge>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            {stats.overdueInvoices.length === 0 ? (
+              <div className="py-8 text-center text-xs text-[#73766F] space-y-2">
+                <CheckCircle2 className="w-8 h-8 text-[#3E6148] mx-auto opacity-80" />
+                <p className="font-medium text-[#252724]">Không có hóa đơn tồn đọng công nợ</p>
+                <p className="text-[11px] text-[#A3A69F]">Tất cả khách thuê đã hoàn tất thanh toán hóa đơn.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-[#E8E5DF] text-[#73766F] font-semibold bg-[#F2EFE9]/50">
+                      <th className="py-2.5 px-3 rounded-l-lg">Mã Hóa Đơn</th>
+                      <th className="py-2.5 px-3">Phòng</th>
+                      <th className="py-2.5 px-3">Khách Thuê</th>
+                      <th className="py-2.5 px-3 text-right">Còn Thiếu</th>
+                      <th className="py-2.5 px-3 rounded-r-lg text-center">Trạng Thái</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#F2EFE9]">
+                    {stats.overdueInvoices.map((inv) => {
+                      const statusInfo = translateInvoiceStatus(inv.status);
+                      return (
+                        <tr key={inv.code} className="hover:bg-[#F8F7F4] transition-colors">
+                          <td className="py-3 px-3 font-medium text-[#252724]">{inv.code}</td>
+                          <td className="py-3 px-3 text-[#52554E]">{inv.roomNumber}</td>
+                          <td className="py-3 px-3 text-[#52554E]">{inv.tenantName}</td>
+                          <td className="py-3 px-3 text-right font-semibold text-[#A84646]">
+                            {formatCurrency(inv.remainingAmount)}
+                          </td>
+                          <td className="py-3 px-3 text-center">
+                            <Badge variant={statusInfo.variant}>
+                              {statusInfo.label}
+                            </Badge>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </Card>
         </div>
 
@@ -259,17 +234,24 @@ export default function AdminDashboardPage() {
             }
             subtitle="Cần gia hạn hoặc thanh lý trong 30 ngày tới"
           >
-            <div className="space-y-3">
-              {expiringContracts.map((c) => (
-                <div key={c.code} className="p-3.5 rounded-xl bg-[#F8F7F4] border border-[#E8E5DF] flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-semibold text-[#252724]">{c.room} - {c.tenant}</p>
-                    <p className="text-[11px] text-[#73766F] mt-0.5">Hạn hợp đồng: {c.endDate}</p>
+            {stats.expiringContracts.length === 0 ? (
+              <div className="py-6 text-center text-xs text-[#73766F] space-y-1">
+                <p className="font-medium text-[#252724]">Không có hợp đồng sắp hết hạn</p>
+                <p className="text-[11px] text-[#A3A69F]">Tất cả hợp đồng thuê đều đang trong hạn dài.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {stats.expiringContracts.map((c) => (
+                  <div key={c.code} className="p-3.5 rounded-xl bg-[#F8F7F4] border border-[#E8E5DF] flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-semibold text-[#252724]">{c.roomNumber} - {c.tenantName}</p>
+                      <p className="text-[11px] text-[#73766F] mt-0.5">Hạn hợp đồng: {c.endDate}</p>
+                    </div>
+                    <Badge variant="warning">{c.daysLeft}</Badge>
                   </div>
-                  <Badge variant="warning">{c.daysLeft}</Badge>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </Card>
 
           {/* Quick Room Status Summary */}
@@ -280,21 +262,27 @@ export default function AdminDashboardPage() {
                   <span className="w-2.5 h-2.5 rounded-full bg-[#3E6148]" />
                   <span className="text-[#52554E]">Phòng đang thuê</span>
                 </div>
-                <span className="font-semibold text-[#252724]">17 phòng (85%)</span>
+                <span className="font-semibold text-[#252724]">
+                  {stats.rentedRooms} phòng ({stats.occupancyRate}%)
+                </span>
               </div>
               <div className="flex items-center justify-between pb-2.5 border-b border-[#F2EFE9]">
                 <div className="flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-[#8C765C]" />
                   <span className="text-[#52554E]">Phòng còn trống</span>
                 </div>
-                <span className="font-semibold text-[#252724]">2 phòng (10%)</span>
+                <span className="font-semibold text-[#252724]">
+                  {stats.vacantRooms} phòng ({stats.totalRooms > 0 ? Math.round((stats.vacantRooms / stats.totalRooms) * 100) : 0}%)
+                </span>
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-[#A36E35]" />
                   <span className="text-[#52554E]">Đang bảo trì</span>
                 </div>
-                <span className="font-semibold text-[#252724]">1 phòng (5%)</span>
+                <span className="font-semibold text-[#252724]">
+                  {stats.maintenanceRooms} phòng ({stats.totalRooms > 0 ? Math.round((stats.maintenanceRooms / stats.totalRooms) * 100) : 0}%)
+                </span>
               </div>
             </div>
           </Card>

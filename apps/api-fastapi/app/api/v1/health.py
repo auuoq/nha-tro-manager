@@ -45,7 +45,7 @@ from app.models import (
     Tenant, Contract, ContractStatus, ContractTenant, ContractTenantRole,
     ChargeConfig, ChargeType, ChargeMethod, Meter, MeterType,
     MeterReading, MeterReadingStatus, Invoice, InvoiceStatus,
-    InvoiceItem, InvoiceItemType, Payment, PaymentMethod, PaymentStatus,
+    InvoiceItem, InvoiceItemType, Payment, PaymentMethod, PaymentSource, PaymentStatus,
     MaintenanceRequest, MaintenanceStatus, MaintenancePriority
 )
 from app.core.security import hash_password
@@ -332,29 +332,31 @@ async def seed_staging_endpoint(db: AsyncSession = Depends(get_db)):
                     if r_num == "101":
                         pmt = Payment(
                             id=f"pmt_101_{uuid.uuid4().hex[:4]}",
+                            paymentCode=f"PMT-202607-{r_num}",
                             invoiceId=inv.id,
                             amount=inv_total,
-                            paymentMethod=PaymentMethod.VIETQR,
-                            paymentStatus=PaymentStatus.CONFIRMED,
-                            paidAt=now,
+                            method=PaymentMethod.VIETQR,
+                            status=PaymentStatus.CONFIRMED,
+                            source=PaymentSource.SYSTEM,
+                            confirmedAt=now,
                         )
                         db.add(pmt)
 
             # Maintenance Request for Room 101
-            maint = MaintenanceRequest(
-                id=f"mnt_101_{uuid.uuid4().hex[:4]}",
-                roomId=rooms_bld1[0][0], # Will fetch room ID
-                title="Sửa máy lạnh kêu to",
-                description="Máy lạnh phòng 101 phát tiếng động rung lắc khi bật chế độ làm lạnh nhanh.",
-                priority=MaintenancePriority.HIGH,
-                status=MaintenanceStatus.PENDING,
-            )
-            # Find Room 101 ID
             stmt = select(Room).where(Room.buildingId == bld1.id, Room.roomNumber == "101")
             res = await db.execute(stmt)
             r101_obj = res.scalar_one_or_none()
             if r101_obj:
-                maint.roomId = r101_obj.id
+                maint = MaintenanceRequest(
+                    id=f"mnt_101_{uuid.uuid4().hex[:4]}",
+                    ticketCode="MNT-101-001",
+                    roomId=r101_obj.id,
+                    createdById=tenant_users[0].id,
+                    title="Sửa máy lạnh kêu to",
+                    description="Máy lạnh phòng 101 phát tiếng động rung lắc khi bật chế độ làm lạnh nhanh.",
+                    priority=MaintenancePriority.HIGH,
+                    status=MaintenanceStatus.PENDING,
+                )
                 db.add(maint)
 
         await db.commit()

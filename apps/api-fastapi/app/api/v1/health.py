@@ -169,10 +169,10 @@ async def seed_staging_endpoint(db: AsyncSession = Depends(get_db)):
 
             # Charge Configs for Building 1
             charges = [
-                (ChargeType.ELECTRICITY, ChargeMethod.BY_METER, Decimal("3500")),
-                (ChargeType.WATER, ChargeMethod.BY_METER, Decimal("20000")),
-                (ChargeType.INTERNET, ChargeMethod.FIXED_PER_ROOM, Decimal("100000")),
-                (ChargeType.TRASH, ChargeMethod.FIXED_PER_ROOM, Decimal("50000")),
+                (ChargeType.ELECTRICITY, ChargeMethod.METERED, Decimal("3500")),
+                (ChargeType.WATER, ChargeMethod.METERED, Decimal("20000")),
+                (ChargeType.WIFI, ChargeMethod.PER_ROOM, Decimal("100000")),
+                (ChargeType.GARBAGE, ChargeMethod.PER_ROOM, Decimal("50000")),
             ]
             for c_type, c_method, price in charges:
                 cc = ChargeConfig(
@@ -302,17 +302,17 @@ async def seed_staging_endpoint(db: AsyncSession = Depends(get_db)):
                         totalAmount=inv_total,
                         paidAmount=inv_total if r_num == "101" else Decimal("0"),
                         remainingAmount=Decimal("0") if r_num == "101" else inv_total,
-                        status=InvoiceStatus.PAID if r_num == "101" else InvoiceStatus.SENT,
+                        status=InvoiceStatus.PAID if r_num == "101" else InvoiceStatus.ISSUED,
                     )
                     db.add(inv)
                     await db.flush()
 
                     # Invoice Items
                     items = [
-                        (InvoiceItemType.ROOM_RENT, f"Tiền phòng {r_num} (Tháng 07/2026)", Decimal("1.00"), "tháng", price),
+                        (InvoiceItemType.ROOM, f"Tiền phòng {r_num} (Tháng 07/2026)", Decimal("1.00"), "tháng", price),
                         (InvoiceItemType.ELECTRICITY, "Tiền điện (145 kWh x 3,500đ)", Decimal("145.00"), "kWh", Decimal("3500")),
                         (InvoiceItemType.WATER, "Tiền nước (12 m3 x 20,000đ)", Decimal("12.00"), "m3", Decimal("20000")),
-                        (InvoiceItemType.SERVICE, "Phí rác & Internet", Decimal("1.00"), "phòng", Decimal("150000")),
+                        (InvoiceItemType.WIFI, "Phí rác & Internet", Decimal("1.00"), "phòng", Decimal("150000")),
                     ]
                     for idx, (i_type, desc, qty, unit, u_price) in enumerate(items):
                         ii = InvoiceItem(
@@ -335,7 +335,7 @@ async def seed_staging_endpoint(db: AsyncSession = Depends(get_db)):
                             invoiceId=inv.id,
                             amount=inv_total,
                             paymentMethod=PaymentMethod.VIETQR,
-                            paymentStatus=PaymentStatus.SUCCESS,
+                            paymentStatus=PaymentStatus.CONFIRMED,
                             paidAt=now,
                         )
                         db.add(pmt)

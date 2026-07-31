@@ -67,7 +67,13 @@ async def seed_staging_endpoint(db: AsyncSession = Depends(get_db)):
                 tokenVersion=1,
             )
             db.add(admin)
-            await db.flush()
+        else:
+            admin.role = UserRole.SUPER_ADMIN
+            admin.passwordHash = hash_password("123456")
+            admin.fullName = "Quản Trị Viên Staging"
+            admin.isActive = True
+            admin.mustChangePassword = False
+        await db.flush()
 
         # 2. Owner User / Người Cho Thuê (Phone: 0972095088)
         stmt = select(User).where(User.phone == "0972095088")
@@ -94,6 +100,13 @@ async def seed_staging_endpoint(db: AsyncSession = Depends(get_db)):
                 businessName="Chu Nha Staging Boutique",
             )
             db.add(profile)
+        else:
+            owner.role = UserRole.OWNER
+            owner.passwordHash = hash_password("123456")
+            owner.fullName = "Chủ Nhà Mẫu Staging"
+            owner.isActive = True
+            owner.mustChangePassword = False
+        await db.flush()
 
         # 3. Tenant 1 User (Phone: 083373181)
         stmt = select(User).where(User.phone == "083373181")
@@ -112,7 +125,13 @@ async def seed_staging_endpoint(db: AsyncSession = Depends(get_db)):
                 tokenVersion=1,
             )
             db.add(tenant1_user)
-            await db.flush()
+        else:
+            tenant1_user.role = UserRole.TENANT
+            tenant1_user.passwordHash = hash_password("123456")
+            tenant1_user.fullName = "Nguyễn Văn An (Khách Thuê P101)"
+            tenant1_user.isActive = True
+            tenant1_user.mustChangePassword = False
+        await db.flush()
 
         # 4. Tenant 2 User (Phone: 0912345678)
         stmt = select(User).where(User.phone == "0912345678")
@@ -131,7 +150,13 @@ async def seed_staging_endpoint(db: AsyncSession = Depends(get_db)):
                 tokenVersion=1,
             )
             db.add(tenant2_user)
-            await db.flush()
+        else:
+            tenant2_user.role = UserRole.TENANT
+            tenant2_user.passwordHash = hash_password("123456")
+            tenant2_user.fullName = "Trần Thị Bình (Khách Thuê P102)"
+            tenant2_user.isActive = True
+            tenant2_user.mustChangePassword = False
+        await db.flush()
 
         # 5. Building & Rooms setup for Owner
         stmt = select(Building).where(Building.ownerId == owner.id)

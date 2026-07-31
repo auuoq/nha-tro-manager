@@ -33,8 +33,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
   }, []);
 
-  const login = async (phone: string, passwordHash: string): Promise<UserDTO> => {
-    const res = await authApi.login({ phone, passwordHash });
+  const login = async (phone: string, password: string): Promise<UserDTO> => {
+    const res = await authApi.login({ phone, password });
     const userData = res.user;
     setUser(userData);
     localStorage.setItem("currentUser", JSON.stringify(userData));

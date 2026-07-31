@@ -1,6 +1,6 @@
 export interface LoginPayload {
   phone: string;
-  passwordHash: string;
+  password: string;
 }
 
 export interface UserDTO {

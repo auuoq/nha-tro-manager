@@ -4,7 +4,7 @@ import { UserDTO } from "../types/auth.types";
 export interface AuthContextType {
   user: UserDTO | null;
   loading: boolean;
-  login: (phone: string, passwordHash: string) => Promise<UserDTO>;
+  login: (phone: string, password: string) => Promise<UserDTO>;
   logout: () => Promise<void>;
   setUser: React.Dispatch<React.SetStateAction<UserDTO | null>>;
 }

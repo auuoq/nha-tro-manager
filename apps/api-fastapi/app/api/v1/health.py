@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text, select
+from sqlalchemy import text, select, or_
 from app.db.session import get_db
 from app.schemas.common import APIResponse
 
@@ -57,7 +57,7 @@ async def seed_staging_endpoint(db: AsyncSession = Depends(get_db)):
         now = datetime.now(timezone.utc)
 
         # 1. Super Admin User (Phone: 0833737181)
-        stmt = select(User).where(User.phone == "0833737181")
+        stmt = select(User).where(or_(User.phone == "0833737181", User.email == "admin.0833737181@nhatro.com"))
         res = await db.execute(stmt)
         admin = res.scalar_one_or_none()
         if not admin:
@@ -74,6 +74,8 @@ async def seed_staging_endpoint(db: AsyncSession = Depends(get_db)):
             )
             db.add(admin)
         else:
+            admin.phone = "0833737181"
+            admin.email = "admin.0833737181@nhatro.com"
             admin.role = UserRole.SUPER_ADMIN
             admin.passwordHash = hash_password("123456")
             admin.fullName = "Quản Trị Viên Staging"
@@ -82,7 +84,7 @@ async def seed_staging_endpoint(db: AsyncSession = Depends(get_db)):
         await db.flush()
 
         # 2. Owner User (Phone: 0972095088)
-        stmt = select(User).where(User.phone == "0972095088")
+        stmt = select(User).where(or_(User.phone == "0972095088", User.email == "owner.0972095088@nhatro.com"))
         res = await db.execute(stmt)
         owner = res.scalar_one_or_none()
         if not owner:
@@ -107,6 +109,8 @@ async def seed_staging_endpoint(db: AsyncSession = Depends(get_db)):
             )
             db.add(profile)
         else:
+            owner.phone = "0972095088"
+            owner.email = "owner.0972095088@nhatro.com"
             owner.role = UserRole.OWNER
             owner.passwordHash = hash_password("123456")
             owner.fullName = "Chủ Nhà Mẫu Staging"
@@ -123,7 +127,7 @@ async def seed_staging_endpoint(db: AsyncSession = Depends(get_db)):
         ]
         tenant_users = []
         for phone, email, name in tenants_data:
-            stmt = select(User).where(User.phone == phone)
+            stmt = select(User).where(or_(User.phone == phone, User.email == email))
             res = await db.execute(stmt)
             t_user = res.scalar_one_or_none()
             if not t_user:
@@ -140,6 +144,8 @@ async def seed_staging_endpoint(db: AsyncSession = Depends(get_db)):
                 )
                 db.add(t_user)
             else:
+                t_user.phone = phone
+                t_user.email = email
                 t_user.role = UserRole.TENANT
                 t_user.passwordHash = hash_password("123456")
                 t_user.fullName = name

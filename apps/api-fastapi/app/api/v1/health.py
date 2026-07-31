@@ -48,18 +48,37 @@ from app.core.security import hash_password
 
 @router.post("/seed")
 async def seed_staging_endpoint(db: AsyncSession = Depends(get_db)):
-    """Seed staging database with initial Owner and Tenant test accounts."""
+    """Seed staging database with Super Admin, Owner, Tenants, Buildings, Rooms & Contracts."""
     try:
-        # 1. Owner
-        stmt = select(User).where(User.phone == "0987654321")
+        # 1. Super Admin User (Phone: 0833737181)
+        stmt = select(User).where(User.phone == "0833737181")
+        res = await db.execute(stmt)
+        admin = res.scalar_one_or_none()
+        if not admin:
+            admin = User(
+                id=f"usr_admin_{uuid.uuid4().hex[:8]}",
+                phone="0833737181",
+                email="admin.staging@nhatro.com",
+                fullName="Quản Trị Viên Staging",
+                passwordHash=hash_password("123456"),
+                role=UserRole.SUPER_ADMIN,
+                isActive=True,
+                mustChangePassword=False,
+                tokenVersion=1,
+            )
+            db.add(admin)
+            await db.flush()
+
+        # 2. Owner User / Người Cho Thuê (Phone: 0972095088)
+        stmt = select(User).where(User.phone == "0972095088")
         res = await db.execute(stmt)
         owner = res.scalar_one_or_none()
         if not owner:
             owner = User(
                 id=f"usr_owner_{uuid.uuid4().hex[:8]}",
-                phone="0987654321",
+                phone="0972095088",
                 email="owner.staging@nhatro.com",
-                fullName="Chủ Nhà Staging",
+                fullName="Chủ Nhà Mẫu Staging",
                 passwordHash=hash_password("123456"),
                 role=UserRole.OWNER,
                 isActive=True,
@@ -76,26 +95,45 @@ async def seed_staging_endpoint(db: AsyncSession = Depends(get_db)):
             )
             db.add(profile)
 
-        # 2. Tenant
+        # 3. Tenant 1 User (Phone: 083373181)
         stmt = select(User).where(User.phone == "083373181")
         res = await db.execute(stmt)
-        tenant_user = res.scalar_one_or_none()
-        if not tenant_user:
-            tenant_user = User(
-                id=f"usr_tenant_{uuid.uuid4().hex[:8]}",
+        tenant1_user = res.scalar_one_or_none()
+        if not tenant1_user:
+            tenant1_user = User(
+                id=f"usr_t1_{uuid.uuid4().hex[:8]}",
                 phone="083373181",
-                email="tenant.staging@nhatro.com",
-                fullName="Khách Thuê Mẫu Staging",
+                email="tenant1.staging@nhatro.com",
+                fullName="Nguyễn Văn An (Khách Thuê P101)",
                 passwordHash=hash_password("123456"),
                 role=UserRole.TENANT,
                 isActive=True,
                 mustChangePassword=False,
                 tokenVersion=1,
             )
-            db.add(tenant_user)
+            db.add(tenant1_user)
             await db.flush()
 
-        # 3. Building & Room
+        # 4. Tenant 2 User (Phone: 0912345678)
+        stmt = select(User).where(User.phone == "0912345678")
+        res = await db.execute(stmt)
+        tenant2_user = res.scalar_one_or_none()
+        if not tenant2_user:
+            tenant2_user = User(
+                id=f"usr_t2_{uuid.uuid4().hex[:8]}",
+                phone="0912345678",
+                email="tenant2.staging@nhatro.com",
+                fullName="Trần Thị Bình (Khách Thuê P102)",
+                passwordHash=hash_password("123456"),
+                role=UserRole.TENANT,
+                isActive=True,
+                mustChangePassword=False,
+                tokenVersion=1,
+            )
+            db.add(tenant2_user)
+            await db.flush()
+
+        # 5. Building & Rooms setup for Owner
         stmt = select(Building).where(Building.ownerId == owner.id)
         res = await db.execute(stmt)
         building = res.scalar_one_or_none()
@@ -106,14 +144,15 @@ async def seed_staging_endpoint(db: AsyncSession = Depends(get_db)):
                 name="Tòa Nhà Staging Boutique",
                 address="123 Đường Staging, Phường Bến Nghé, Quận 1, TP.HCM",
                 bankName="Vietcombank",
-                bankAccountNo="9987654321",
-                bankAccountName="CHU NHA STAGING",
+                bankAccountNo="9972095088",
+                bankAccountName="NGUYEN VAN CHU NHA",
             )
             db.add(building)
             await db.flush()
 
-            room = Room(
-                id=f"rm_staging_{uuid.uuid4().hex[:8]}",
+            # Room 101 (Rented by Tenant 1)
+            room101 = Room(
+                id=f"rm_101_{uuid.uuid4().hex[:8]}",
                 buildingId=building.id,
                 roomNumber="101",
                 floor=1,
@@ -122,24 +161,62 @@ async def seed_staging_endpoint(db: AsyncSession = Depends(get_db)):
                 areaSqM=Decimal("30.00"),
                 status=RoomStatus.RENTED,
             )
-            db.add(room)
-            await db.flush()
+            db.add(room101)
 
-            tenant = Tenant(
-                id=f"tnt_staging_{uuid.uuid4().hex[:8]}",
-                ownerId=owner.id,
-                userId=tenant_user.id,
-                fullName="Khách Thuê Mẫu Staging",
-                phone="083373181",
-                idCardNumber="079200001234",
+            # Room 102 (Rented by Tenant 2)
+            room102 = Room(
+                id=f"rm_102_{uuid.uuid4().hex[:8]}",
+                buildingId=building.id,
+                roomNumber="102",
+                floor=1,
+                roomType="VIP Balcony",
+                basePrice=Decimal("7000000"),
+                areaSqM=Decimal("45.00"),
+                status=RoomStatus.RENTED,
             )
-            db.add(tenant)
+            db.add(room102)
+
+            # Room 201 (Vacant / Sẵn sàng cho thuê)
+            room201 = Room(
+                id=f"rm_201_{uuid.uuid4().hex[:8]}",
+                buildingId=building.id,
+                roomNumber="201",
+                floor=2,
+                roomType="Standard Studio",
+                basePrice=Decimal("5500000"),
+                areaSqM=Decimal("35.00"),
+                status=RoomStatus.VACANT,
+            )
+            db.add(room201)
             await db.flush()
 
-            contract = Contract(
-                id=f"ctr_staging_{uuid.uuid4().hex[:8]}",
-                roomId=room.id,
-                contractCode="HD-STAGING-101",
+            # Tenant Profiles
+            t1 = Tenant(
+                id=f"tnt_1_{uuid.uuid4().hex[:8]}",
+                ownerId=owner.id,
+                userId=tenant1_user.id,
+                fullName="Nguyễn Văn An",
+                phone="083373181",
+                idCardNumber="079200001111",
+            )
+            db.add(t1)
+
+            t2 = Tenant(
+                id=f"tnt_2_{uuid.uuid4().hex[:8]}",
+                ownerId=owner.id,
+                userId=tenant2_user.id,
+                fullName="Trần Thị Bình",
+                phone="0912345678",
+                idCardNumber="079200002222",
+            )
+            db.add(t2)
+            await db.flush()
+
+            # Contract 1 (Active P101)
+            c1 = Contract(
+                id=f"ctr_1_{uuid.uuid4().hex[:8]}",
+                roomId=room101.id,
+                contractCode="HD-P101",
                 startDate=datetime.now(timezone.utc),
                 endDate=datetime(2027, 12, 31, tzinfo=timezone.utc),
                 monthlyPrice=Decimal("5000000"),
@@ -147,22 +224,50 @@ async def seed_staging_endpoint(db: AsyncSession = Depends(get_db)):
                 billingDay=5,
                 status=ContractStatus.ACTIVE,
             )
-            db.add(contract)
+            db.add(c1)
             await db.flush()
 
-            contract_tenant = ContractTenant(
-                id=f"ctt_staging_{uuid.uuid4().hex[:8]}",
-                contractId=contract.id,
-                tenantId=tenant.id,
+            ct1 = ContractTenant(
+                id=f"ctt_1_{uuid.uuid4().hex[:8]}",
+                contractId=c1.id,
+                tenantId=t1.id,
                 role=ContractTenantRole.PRIMARY,
             )
-            db.add(contract_tenant)
+            db.add(ct1)
+
+            # Contract 2 (Active P102)
+            c2 = Contract(
+                id=f"ctr_2_{uuid.uuid4().hex[:8]}",
+                roomId=room102.id,
+                contractCode="HD-P102",
+                startDate=datetime.now(timezone.utc),
+                endDate=datetime(2027, 12, 31, tzinfo=timezone.utc),
+                monthlyPrice=Decimal("7000000"),
+                depositAmount=Decimal("14000000"),
+                billingDay=5,
+                status=ContractStatus.ACTIVE,
+            )
+            db.add(c2)
+            await db.flush()
+
+            ct2 = ContractTenant(
+                id=f"ctt_2_{uuid.uuid4().hex[:8]}",
+                contractId=c2.id,
+                tenantId=t2.id,
+                role=ContractTenantRole.PRIMARY,
+            )
+            db.add(ct2)
 
         await db.commit()
         return {
             "success": True,
-            "data": {"status": "SEEDED"},
-            "message": "Khởi tạo dữ liệu mẫu Staging thành công",
+            "data": {
+                "super_admin": "0833737181 / 123456",
+                "owner": "0972095088 / 123456",
+                "tenant1_p101": "083373181 / 123456",
+                "tenant2_p102": "0912345678 / 123456",
+            },
+            "message": "Khởi tạo dữ liệu mẫu Staging (SuperAdmin, Owner, Multi-Tenants) thành công",
         }
     except Exception as e:
         await db.rollback()

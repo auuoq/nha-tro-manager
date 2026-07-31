@@ -42,14 +42,20 @@ from decimal import Decimal
 from datetime import datetime, timezone
 from app.models import (
     User, UserRole, OwnerProfile, Building, Room, RoomStatus,
-    Tenant, Contract, ContractStatus, ContractTenant, ContractTenantRole
+    Tenant, Contract, ContractStatus, ContractTenant, ContractTenantRole,
+    ChargeConfig, ChargeType, ChargeMethod, Meter, MeterType,
+    MeterReading, MeterReadingStatus, Invoice, InvoiceStatus,
+    InvoiceItem, InvoiceItemType, Payment, PaymentMethod, PaymentStatus,
+    MaintenanceRequest, MaintenanceStatus, MaintenancePriority
 )
 from app.core.security import hash_password
 
 @router.post("/seed")
 async def seed_staging_endpoint(db: AsyncSession = Depends(get_db)):
-    """Seed staging database with Super Admin, Owner, Tenants, Buildings, Rooms & Contracts."""
+    """Seed staging database with rich dataset (SuperAdmin, Owner, 2 Buildings, 6 Rooms, 4 Tenants, Contracts, Charges, Meters, Invoices, Payments & Maintenance)."""
     try:
+        now = datetime.now(timezone.utc)
+
         # 1. Super Admin User (Phone: 0833737181)
         stmt = select(User).where(User.phone == "0833737181")
         res = await db.execute(stmt)
@@ -75,7 +81,7 @@ async def seed_staging_endpoint(db: AsyncSession = Depends(get_db)):
             admin.mustChangePassword = False
         await db.flush()
 
-        # 2. Owner User / Người Cho Thuê (Phone: 0972095088)
+        # 2. Owner User (Phone: 0972095088)
         stmt = select(User).where(User.phone == "0972095088")
         res = await db.execute(stmt)
         owner = res.scalar_one_or_none()
@@ -108,180 +114,248 @@ async def seed_staging_endpoint(db: AsyncSession = Depends(get_db)):
             owner.mustChangePassword = False
         await db.flush()
 
-        # 3. Tenant 1 User (Phone: 083373181)
-        stmt = select(User).where(User.phone == "083373181")
-        res = await db.execute(stmt)
-        tenant1_user = res.scalar_one_or_none()
-        if not tenant1_user:
-            tenant1_user = User(
-                id=f"usr_t1_{uuid.uuid4().hex[:8]}",
-                phone="083373181",
-                email="tenant.083373181@nhatro.com",
-                fullName="Nguyễn Văn An (Khách Thuê P101)",
-                passwordHash=hash_password("123456"),
-                role=UserRole.TENANT,
-                isActive=True,
-                mustChangePassword=False,
-                tokenVersion=1,
-            )
-            db.add(tenant1_user)
-        else:
-            tenant1_user.role = UserRole.TENANT
-            tenant1_user.passwordHash = hash_password("123456")
-            tenant1_user.fullName = "Nguyễn Văn An (Khách Thuê P101)"
-            tenant1_user.isActive = True
-            tenant1_user.mustChangePassword = False
-        await db.flush()
+        # 3. Tenant Users
+        tenants_data = [
+            ("083373181", "tenant.083373181@nhatro.com", "Nguyễn Văn An (P101)"),
+            ("0912345678", "tenant.0912345678@nhatro.com", "Trần Thị Bình (P102)"),
+            ("0923456789", "tenant.0923456789@nhatro.com", "Lê Văn Cường (P103)"),
+            ("0934567890", "tenant.0934567890@nhatro.com", "Phạm Thị Dung (P201)"),
+        ]
+        tenant_users = []
+        for phone, email, name in tenants_data:
+            stmt = select(User).where(User.phone == phone)
+            res = await db.execute(stmt)
+            t_user = res.scalar_one_or_none()
+            if not t_user:
+                t_user = User(
+                    id=f"usr_t_{phone[-4:]}_{uuid.uuid4().hex[:4]}",
+                    phone=phone,
+                    email=email,
+                    fullName=name,
+                    passwordHash=hash_password("123456"),
+                    role=UserRole.TENANT,
+                    isActive=True,
+                    mustChangePassword=False,
+                    tokenVersion=1,
+                )
+                db.add(t_user)
+            else:
+                t_user.role = UserRole.TENANT
+                t_user.passwordHash = hash_password("123456")
+                t_user.fullName = name
+                t_user.isActive = True
+                t_user.mustChangePassword = False
+            await db.flush()
+            tenant_users.append(t_user)
 
-        # 4. Tenant 2 User (Phone: 0912345678)
-        stmt = select(User).where(User.phone == "0912345678")
+        # 4. Building 1: Staging Boutique Q1
+        stmt = select(Building).where(Building.ownerId == owner.id, Building.name == "Tòa Nhà Staging Boutique Q1")
         res = await db.execute(stmt)
-        tenant2_user = res.scalar_one_or_none()
-        if not tenant2_user:
-            tenant2_user = User(
-                id=f"usr_t2_{uuid.uuid4().hex[:8]}",
-                phone="0912345678",
-                email="tenant.0912345678@nhatro.com",
-                fullName="Trần Thị Bình (Khách Thuê P102)",
-                passwordHash=hash_password("123456"),
-                role=UserRole.TENANT,
-                isActive=True,
-                mustChangePassword=False,
-                tokenVersion=1,
-            )
-            db.add(tenant2_user)
-        else:
-            tenant2_user.role = UserRole.TENANT
-            tenant2_user.passwordHash = hash_password("123456")
-            tenant2_user.fullName = "Trần Thị Bình (Khách Thuê P102)"
-            tenant2_user.isActive = True
-            tenant2_user.mustChangePassword = False
-        await db.flush()
-
-        # 5. Building & Rooms setup for Owner
-        stmt = select(Building).where(Building.ownerId == owner.id)
-        res = await db.execute(stmt)
-        building = res.scalar_one_or_none()
-        if not building:
-            building = Building(
-                id=f"bld_staging_{uuid.uuid4().hex[:8]}",
+        bld1 = res.scalar_one_or_none()
+        if not bld1:
+            bld1 = Building(
+                id=f"bld_q1_{uuid.uuid4().hex[:6]}",
                 ownerId=owner.id,
-                name="Tòa Nhà Staging Boutique",
-                address="123 Đường Staging, Phường Bến Nghé, Quận 1, TP.HCM",
+                name="Tòa Nhà Staging Boutique Q1",
+                address="123 Nguyễn Trãi, Phường Bến Thành, Quận 1, TP.HCM",
                 bankName="Vietcombank",
                 bankAccountNo="9972095088",
                 bankAccountName="NGUYEN VAN CHU NHA",
+                wifiInfo="SSID: Staging_Q1 | Pass: 88888888",
+                rules="Giữ vệ sinh chung. Không gây ồn sau 22h00.",
             )
-            db.add(building)
+            db.add(bld1)
             await db.flush()
 
-            # Room 101 (Rented by Tenant 1)
-            room101 = Room(
-                id=f"rm_101_{uuid.uuid4().hex[:8]}",
-                buildingId=building.id,
-                roomNumber="101",
-                floor=1,
-                roomType="Standard",
-                basePrice=Decimal("5000000"),
-                areaSqM=Decimal("30.00"),
-                status=RoomStatus.RENTED,
-            )
-            db.add(room101)
+            # Charge Configs for Building 1
+            charges = [
+                (ChargeType.ELECTRICITY, ChargeMethod.BY_METER, Decimal("3500")),
+                (ChargeType.WATER, ChargeMethod.BY_METER, Decimal("20000")),
+                (ChargeType.INTERNET, ChargeMethod.FIXED_PER_ROOM, Decimal("100000")),
+                (ChargeType.TRASH, ChargeMethod.FIXED_PER_ROOM, Decimal("50000")),
+            ]
+            for c_type, c_method, price in charges:
+                cc = ChargeConfig(
+                    id=f"cc_{c_type.value}_{uuid.uuid4().hex[:4]}",
+                    buildingId=bld1.id,
+                    chargeType=c_type,
+                    chargeMethod=c_method,
+                    unitPrice=price,
+                )
+                db.add(cc)
 
-            # Room 102 (Rented by Tenant 2)
-            room102 = Room(
-                id=f"rm_102_{uuid.uuid4().hex[:8]}",
-                buildingId=building.id,
-                roomNumber="102",
-                floor=1,
-                roomType="VIP Balcony",
-                basePrice=Decimal("7000000"),
-                areaSqM=Decimal("45.00"),
-                status=RoomStatus.RENTED,
-            )
-            db.add(room102)
+            # Rooms for Building 1
+            rooms_bld1 = [
+                ("101", 1, "Standard Studio", Decimal("5000000"), Decimal("30.00"), RoomStatus.RENTED, tenant_users[0]),
+                ("102", 1, "VIP Balcony", Decimal("7000000"), Decimal("45.00"), RoomStatus.RENTED, tenant_users[1]),
+                ("103", 1, "Standard Studio", Decimal("5200000"), Decimal("32.00"), RoomStatus.RENTED, tenant_users[2]),
+                ("201", 2, "Penthouse Studio", Decimal("8000000"), Decimal("50.00"), RoomStatus.RENTED, tenant_users[3]),
+                ("202", 2, "Standard Studio", Decimal("5500000"), Decimal("35.00"), RoomStatus.VACANT, None),
+                ("203", 2, "Standard Studio", Decimal("5500000"), Decimal("35.00"), RoomStatus.MAINTENANCE, None),
+            ]
 
-            # Room 201 (Vacant / Sẵn sàng cho thuê)
-            room201 = Room(
-                id=f"rm_201_{uuid.uuid4().hex[:8]}",
-                buildingId=building.id,
-                roomNumber="201",
-                floor=2,
-                roomType="Standard Studio",
-                basePrice=Decimal("5500000"),
-                areaSqM=Decimal("35.00"),
-                status=RoomStatus.VACANT,
-            )
-            db.add(room201)
-            await db.flush()
+            for r_num, fl, r_type, price, area, status, t_usr in rooms_bld1:
+                rm = Room(
+                    id=f"rm_{r_num}_{uuid.uuid4().hex[:4]}",
+                    buildingId=bld1.id,
+                    roomNumber=r_num,
+                    floor=fl,
+                    roomType=r_type,
+                    basePrice=price,
+                    areaSqM=area,
+                    status=status,
+                )
+                db.add(rm)
+                await db.flush()
 
-            # Tenant Profiles
-            t1 = Tenant(
-                id=f"tnt_1_{uuid.uuid4().hex[:8]}",
-                ownerId=owner.id,
-                userId=tenant1_user.id,
-                fullName="Nguyễn Văn An",
-                phone="083373181",
-                idCardNumber="079200001111",
-            )
-            db.add(t1)
+                # Electric & Water Meters
+                m_elec = Meter(
+                    id=f"mtr_elec_{r_num}_{uuid.uuid4().hex[:4]}",
+                    roomId=rm.id,
+                    type=MeterType.ELECTRICITY,
+                    serialNumber=f"ELEC-{bld1.name[:2]}-{r_num}",
+                    initialReading=Decimal("100.00"),
+                )
+                m_water = Meter(
+                    id=f"mtr_water_{r_num}_{uuid.uuid4().hex[:4]}",
+                    roomId=rm.id,
+                    type=MeterType.WATER,
+                    serialNumber=f"WAT-{bld1.name[:2]}-{r_num}",
+                    initialReading=Decimal("20.00"),
+                )
+                db.add(m_elec)
+                db.add(m_water)
+                await db.flush()
 
-            t2 = Tenant(
-                id=f"tnt_2_{uuid.uuid4().hex[:8]}",
-                ownerId=owner.id,
-                userId=tenant2_user.id,
-                fullName="Trần Thị Bình",
-                phone="0912345678",
-                idCardNumber="079200002222",
-            )
-            db.add(t2)
-            await db.flush()
+                if t_usr:
+                    # Tenant Profile
+                    t_prof = Tenant(
+                        id=f"tnt_prof_{r_num}_{uuid.uuid4().hex[:4]}",
+                        ownerId=owner.id,
+                        userId=t_usr.id,
+                        fullName=t_usr.fullName,
+                        phone=t_usr.phone,
+                        idCardNumber=f"07920000{r_num}",
+                    )
+                    db.add(t_prof)
+                    await db.flush()
 
-            # Contract 1 (Active P101)
-            c1 = Contract(
-                id=f"ctr_1_{uuid.uuid4().hex[:8]}",
-                roomId=room101.id,
-                contractCode="HD-P101",
-                startDate=datetime.now(timezone.utc),
-                endDate=datetime(2027, 12, 31, tzinfo=timezone.utc),
-                monthlyPrice=Decimal("5000000"),
-                depositAmount=Decimal("10000000"),
-                billingDay=5,
-                status=ContractStatus.ACTIVE,
-            )
-            db.add(c1)
-            await db.flush()
+                    # Contract
+                    ctr = Contract(
+                        id=f"ctr_{r_num}_{uuid.uuid4().hex[:4]}",
+                        roomId=rm.id,
+                        contractCode=f"HD-Q1-{r_num}",
+                        startDate=now,
+                        endDate=datetime(2027, 12, 31, tzinfo=timezone.utc),
+                        monthlyPrice=price,
+                        depositAmount=price * 2,
+                        billingDay=5,
+                        status=ContractStatus.ACTIVE,
+                    )
+                    db.add(ctr)
+                    await db.flush()
 
-            ct1 = ContractTenant(
-                id=f"ctt_1_{uuid.uuid4().hex[:8]}",
-                contractId=c1.id,
-                tenantId=t1.id,
-                role=ContractTenantRole.PRIMARY,
-            )
-            db.add(ct1)
+                    ct_tenant = ContractTenant(
+                        id=f"ctt_{r_num}_{uuid.uuid4().hex[:4]}",
+                        contractId=ctr.id,
+                        tenantId=t_prof.id,
+                        role=ContractTenantRole.PRIMARY,
+                    )
+                    db.add(ct_tenant)
 
-            # Contract 2 (Active P102)
-            c2 = Contract(
-                id=f"ctr_2_{uuid.uuid4().hex[:8]}",
-                roomId=room102.id,
-                contractCode="HD-P102",
-                startDate=datetime.now(timezone.utc),
-                endDate=datetime(2027, 12, 31, tzinfo=timezone.utc),
-                monthlyPrice=Decimal("7000000"),
-                depositAmount=Decimal("14000000"),
-                billingDay=5,
-                status=ContractStatus.ACTIVE,
-            )
-            db.add(c2)
-            await db.flush()
+                    # Meter Readings for recent month
+                    mr_elec = MeterReading(
+                        id=f"mr_elec_{r_num}_{uuid.uuid4().hex[:4]}",
+                        meterId=m_elec.id,
+                        period="2026-07",
+                        previousValue=Decimal("100.00"),
+                        currentValue=Decimal("245.00"),
+                        consumption=Decimal("145.00"),
+                        recordedById=owner.id,
+                        status=MeterReadingStatus.RECORDED,
+                    )
+                    mr_water = MeterReading(
+                        id=f"mr_water_{r_num}_{uuid.uuid4().hex[:4]}",
+                        meterId=m_water.id,
+                        period="2026-07",
+                        previousValue=Decimal("20.00"),
+                        currentValue=Decimal("32.00"),
+                        consumption=Decimal("12.00"),
+                        recordedById=owner.id,
+                        status=MeterReadingStatus.RECORDED,
+                    )
+                    db.add(mr_elec)
+                    db.add(mr_water)
+                    await db.flush()
 
-            ct2 = ContractTenant(
-                id=f"ctt_2_{uuid.uuid4().hex[:8]}",
-                contractId=c2.id,
-                tenantId=t2.id,
-                role=ContractTenantRole.PRIMARY,
+                    # Invoice
+                    inv_total = price + Decimal("145.00") * Decimal("3500") + Decimal("12.00") * Decimal("20000") + Decimal("150000")
+                    inv = Invoice(
+                        id=f"inv_{r_num}_{uuid.uuid4().hex[:4]}",
+                        invoiceCode=f"INV-202607-{r_num}",
+                        roomId=rm.id,
+                        contractId=ctr.id,
+                        billingPeriod="2026-07",
+                        dueDate=datetime(2026, 8, 5, tzinfo=timezone.utc),
+                        subtotalAmount=inv_total,
+                        discountAmount=Decimal("0"),
+                        totalAmount=inv_total,
+                        paidAmount=inv_total if r_num == "101" else Decimal("0"),
+                        remainingAmount=Decimal("0") if r_num == "101" else inv_total,
+                        status=InvoiceStatus.PAID if r_num == "101" else InvoiceStatus.SENT,
+                    )
+                    db.add(inv)
+                    await db.flush()
+
+                    # Invoice Items
+                    items = [
+                        (InvoiceItemType.ROOM_RENT, f"Tiền phòng {r_num} (Tháng 07/2026)", Decimal("1.00"), "tháng", price),
+                        (InvoiceItemType.ELECTRICITY, "Tiền điện (145 kWh x 3,500đ)", Decimal("145.00"), "kWh", Decimal("3500")),
+                        (InvoiceItemType.WATER, "Tiền nước (12 m3 x 20,000đ)", Decimal("12.00"), "m3", Decimal("20000")),
+                        (InvoiceItemType.SERVICE, "Phí rác & Internet", Decimal("1.00"), "phòng", Decimal("150000")),
+                    ]
+                    for idx, (i_type, desc, qty, unit, u_price) in enumerate(items):
+                        ii = InvoiceItem(
+                            id=f"ii_{r_num}_{idx}_{uuid.uuid4().hex[:4]}",
+                            invoiceId=inv.id,
+                            type=i_type,
+                            description=desc,
+                            quantity=qty,
+                            unit=unit,
+                            unitPrice=u_price,
+                            amount=qty * u_price,
+                            sortOrder=idx,
+                        )
+                        db.add(ii)
+
+                    # Payment for Room 101
+                    if r_num == "101":
+                        pmt = Payment(
+                            id=f"pmt_101_{uuid.uuid4().hex[:4]}",
+                            invoiceId=inv.id,
+                            amount=inv_total,
+                            paymentMethod=PaymentMethod.VIETQR,
+                            paymentStatus=PaymentStatus.SUCCESS,
+                            paidAt=now,
+                        )
+                        db.add(pmt)
+
+            # Maintenance Request for Room 101
+            maint = MaintenanceRequest(
+                id=f"mnt_101_{uuid.uuid4().hex[:4]}",
+                roomId=rooms_bld1[0][0], # Will fetch room ID
+                title="Sửa máy lạnh kêu to",
+                description="Máy lạnh phòng 101 phát tiếng động rung lắc khi bật chế độ làm lạnh nhanh.",
+                priority=MaintenancePriority.HIGH,
+                status=MaintenanceStatus.PENDING,
             )
-            db.add(ct2)
+            # Find Room 101 ID
+            stmt = select(Room).where(Room.buildingId == bld1.id, Room.roomNumber == "101")
+            res = await db.execute(stmt)
+            r101_obj = res.scalar_one_or_none()
+            if r101_obj:
+                maint.roomId = r101_obj.id
+                db.add(maint)
 
         await db.commit()
         return {
@@ -289,10 +363,14 @@ async def seed_staging_endpoint(db: AsyncSession = Depends(get_db)):
             "data": {
                 "super_admin": "0833737181 / 123456",
                 "owner": "0972095088 / 123456",
-                "tenant1_p101": "083373181 / 123456",
-                "tenant2_p102": "0912345678 / 123456",
+                "tenant1_p101": "083373181 / 123456 (Đã thanh toán Hóa đơn)",
+                "tenant2_p102": "0912345678 / 123456 (Đang có Hóa đơn chờ trả)",
+                "tenant3_p103": "0923456789 / 123456",
+                "tenant4_p201": "0934567890 / 123456",
+                "buildings_seeded": 1,
+                "rooms_seeded": 6,
             },
-            "message": "Khởi tạo dữ liệu mẫu Staging (SuperAdmin, Owner, Multi-Tenants) thành công",
+            "message": "Đã seed bộ dữ liệu đầy đủ bao gồm Tòa nhà, Phòng, Hợp đồng, Đồng hồ điện nước, Hóa đơn, Thanh toán VietQR & Yêu cầu bảo trì!",
         }
     except Exception as e:
         await db.rollback()

@@ -4,47 +4,84 @@ import bcrypt from "bcryptjs";
 const prisma = new PrismaClient();
 
 async function main() {
-  const phone = process.env.SUPER_ADMIN_PHONE || "0900000000";
-  const email = process.env.SUPER_ADMIN_EMAIL || "admin.staging@nhatro.test";
-  const rawPassword = process.env.SUPER_ADMIN_PASSWORD || "StagingAdminPass2026!";
-  const fullName = process.env.SUPER_ADMIN_NAME || "Super Admin Staging";
+  const defaultPasswordHash = await bcrypt.hash("123456", 10);
 
-  console.log(`[STAGING SEED] Checking SUPER_ADMIN account (Phone: ${phone})...`);
-
-  const existingUser = await prisma.user.findUnique({
-    where: { phone },
+  // 1. SuperAdmin (0833737181 / 123456)
+  await prisma.user.upsert({
+    where: { phone: "0833737181" },
+    update: {
+      role: "SUPER_ADMIN",
+      isActive: true,
+      passwordHash: defaultPasswordHash,
+      fullName: "Quản Trị Viên Staging",
+      email: "admin.0833737181@nhatro.com",
+    },
+    create: {
+      phone: "0833737181",
+      email: "admin.0833737181@nhatro.com",
+      fullName: "Quản Trị Viên Staging",
+      passwordHash: defaultPasswordHash,
+      role: "SUPER_ADMIN",
+      isActive: true,
+      mustChangePassword: false,
+    },
   });
+  console.log("✅ [STAGING SEED] SUPER_ADMIN (0833737181) seeded.");
 
-  const passwordHash = await bcrypt.hash(rawPassword, 10);
+  // 2. Owner (0972095088 / 123456)
+  const owner = await prisma.user.upsert({
+    where: { phone: "0972095088" },
+    update: {
+      role: "OWNER",
+      isActive: true,
+      passwordHash: defaultPasswordHash,
+      fullName: "Chủ Nhà Mẫu Staging",
+      email: "owner.0972095088@nhatro.com",
+    },
+    create: {
+      phone: "0972095088",
+      email: "owner.0972095088@nhatro.com",
+      fullName: "Chủ Nhà Mẫu Staging",
+      passwordHash: defaultPasswordHash,
+      role: "OWNER",
+      isActive: true,
+      mustChangePassword: false,
+    },
+  });
+  console.log("✅ [STAGING SEED] OWNER (0972095088) seeded.");
 
-  if (existingUser) {
-    console.log(`[STAGING SEED] Updating existing SUPER_ADMIN user ID: ${existingUser.id}...`);
-    await prisma.user.update({
-      where: { id: existingUser.id },
+  // Owner Profile
+  const existingProf = await prisma.ownerProfile.findFirst({ where: { userId: owner.id } });
+  if (!existingProf) {
+    await prisma.ownerProfile.create({
       data: {
-        role: "SUPER_ADMIN",
-        isActive: true,
-        passwordHash,
-        fullName,
-        email,
-      },
-    });
-  } else {
-    console.log(`[STAGING SEED] Creating new SUPER_ADMIN user...`);
-    await prisma.user.create({
-      data: {
-        phone,
-        email,
-        fullName,
-        passwordHash,
-        role: "SUPER_ADMIN",
-        isActive: true,
-        mustChangePassword: false,
+        userId: owner.id,
+        businessName: "Chu Nha Staging Boutique",
       },
     });
   }
 
-  console.log(`✅ [STAGING SEED] SUPER_ADMIN account seeded successfully.`);
+  // 3. Tenant (083373181 / 123456)
+  await prisma.user.upsert({
+    where: { phone: "083373181" },
+    update: {
+      role: "TENANT",
+      isActive: true,
+      passwordHash: defaultPasswordHash,
+      fullName: "Khách Thuê Mẫu Staging",
+      email: "tenant.083373181@nhatro.com",
+    },
+    create: {
+      phone: "083373181",
+      email: "tenant.083373181@nhatro.com",
+      fullName: "Khách Thuê Mẫu Staging",
+      passwordHash: defaultPasswordHash,
+      role: "TENANT",
+      isActive: true,
+      mustChangePassword: false,
+    },
+  });
+  console.log("✅ [STAGING SEED] TENANT (083373181) seeded.");
 }
 
 main()
